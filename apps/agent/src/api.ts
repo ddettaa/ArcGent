@@ -1,67 +1,177 @@
 // ArcGent Agent API Server
-// Hono-based REST API for dashboard integration
+// Hono-based REST API with webhooks, approvals, kill switch
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { getAgent, type AgentRule } from "./agent.js";
+import { getApprovalEngine, type ApprovalRequest } from "./approval/engine.js";
 
 const app = new Hono();
-app.use("*", cors());
+app.use("/*", cors());
+
+// --- HEALTH ---
+app.get("/api/health", (c) => {
+  const agent = getAgent();
+  return c.json({ ok: true, uptime: agent.getState().uptime });
+});
 
 // --- STATUS ---
 app.get("/api/status", async (c) => {
-  try {
-    const state = getAgent().getState();
-    const balance = await getAgent().getBalance() || "0.00";
-    return c.json({
-      status: state.status,
-      wallet: process.env.AGENT_ADDRESS || "0x0000000000000000000000000000000000000000",
-      balance: `${Number(balance).toLocaleString("en-US", { maximumFractionDigits: 6 })}`,
-      blockNumber: String(state.signalCheckCount),
-      signalChecks: state.signalCheckCount,
-      paymentsExecuted: state.paymentCount,
-      chain: "5042002",
-      uptime: `${Math.floor(state.uptime / 60)}m`,
-    });
-  } catch (e) {
-    return c.json({ status: "ERROR", error: String(e) }, 500);
-  }
+  const agent = getAgent();
+  const balance = await agent.getBalance();
+  const state = agent.getState();
+  return c.json({ ...state, balance });
 });
 
 // --- RULES ---
-app.get("/api/rules", (c) => c.json(getAgent().getRules()));
+app.get("/api/rules", (c) => {
+  const agent = getAgent();
+  return c.json(agent.getRules());
+});
 
 app.post("/api/rules", async (c) => {
-  const body = await c.req.json<AgentRule>();
-  const rule = getAgent().addRule(body);
-  return c.json(rule, 201);
+  const agent = getAgent();
+  const body = await c.req.json();
+  const rule: AgentRule = {
+    id: body.id || `rule_${Date.now()}`,
+    name: body.name || "Unnamed Rule",
+    signal: body.signal || { source: "webhook", trigger: "custom", conditions: {} },
+    action: body.action || { type: "pay", recipient: "", amount: 0, currency: "USDC" },
+    enabled: body.enabled ?? false,
+    cooldown: body.cooldown,
+  };
+  const created = agent.addRule(rule);
+  return c.json(created, 201);
 });
 
 app.patch("/api/rules/:id", async (c) => {
+  const agent = getAgent();
   const id = c.req.param("id");
-  const body = await c.req.json<Partial<AgentRule>>();
-  const rule = getAgent().updateRule(id, body);
-  if (!rule) return c.json({ error: "Rule not found" }, 404);
-  return c.json(rule);
+  const body = await c.req.json();
+  const updated = agent.updateRule(id, body);
+  if (!updated) return c.json({ error: "Rule not found" }, 404);
+  return c.json(updated);
 });
 
 app.post("/api/rules/:id/toggle", (c) => {
+  const agent = getAgent();
   const id = c.req.param("id");
-  const rule = getAgent().toggleRule(id);
+  const rule = agent.toggleRule(id);
   if (!rule) return c.json({ error: "Rule not found" }, 404);
   return c.json(rule);
 });
 
 // --- PAYMENTS ---
-app.get("/api/payments", (c) => c.json(getAgent().getPayments()));
+app.get("/api/payments", (c) => {
+  const agent = getAgent();
+  return c.json(agent.getPayments());
+});
 
-// --- HEALTH ---
-app.get("/api/health", (c) => c.json({ ok: true, uptime: getAgent().getState().uptime }));
+// --- APPROVALS ---
+app.get("/api/approvals", (c) => {
+  const approval = getApprovalEngine();
+  return c.json(approval.getAll());
+});
 
-// --- START ---
+app.get("/api/approvals/pending", (c) => {
+  const approval = getApprovalEngine();
+  return c.json(approval.getPending());
+});
+
+app.post("/api/approvals/:id/approve", (c) => {
+  const approval = getApprovalEngine();
+  const id = c.req.param("id");
+  const req = approval.approve(id);
+  if (!req) return c.json({ error: "Request not found or already processed" }, 404);
+  return c.json(req);
+});
+
+app.post("/api/approvals/:id/reject", (c) => {
+  const approval = getApprovalEngine();
+  const id = c.req.param("id");
+  const req = approval.reject(id);
+  if (!req) return c.json({ error: "Request not found or already processed" }, 404);
+  return c.json(req);
+});
+
+// --- WEBHOOKS ---
+app.post("/api/webhook/:source/:trigger", async (c) => {
+  const agent = getAgent();
+  const source = c.req.param("source");
+  const trigger = c.req.param("trigger");
+  const body = await c.req.json().catch(() => ({}));
+  const result = agent.handleWebhook(source, trigger, body);
+  return c.json(result);
+});
+
+// Convenience webhook endpoints
+app.post("/api/webhook/github/pr-merged", async (c) => {
+  const agent = getAgent();
+  const body = await c.req.json().catch(() => ({}));
+  const result = agent.handleWebhook("github", "pr_merged", body);
+  return c.json(result);
+});
+
+app.post("/api/webhook/github/issue-closed", async (c) => {
+  const agent = getAgent();
+  const body = await c.req.json().catch(() => ({}));
+  const result = agent.handleWebhook("github", "issue_closed", body);
+  return c.json(result);
+});
+
+app.post("/api/webhook/flight/delayed", async (c) => {
+  const agent = getAgent();
+  const body = await c.req.json().catch(() => ({}));
+  const result = agent.handleWebhook("flight", "delayed", body);
+  return c.json(result);
+});
+
+app.post("/api/webhook/weather/bad", async (c) => {
+  const agent = getAgent();
+  const body = await c.req.json().catch(() => ({}));
+  const result = agent.handleWebhook("weather", "bad", body);
+  return c.json(result);
+});
+
+app.post("/api/webhook/views/milestone", async (c) => {
+  const agent = getAgent();
+  const body = await c.req.json().catch(() => ({}));
+  const result = agent.handleWebhook("views", "milestone", body);
+  return c.json(result);
+});
+
+// --- KILL SWITCH ---
+app.post("/api/kill", (c) => {
+  const agent = getAgent();
+  agent.kill();
+  return c.json({ status: "KILLED", message: "All payments stopped" });
+});
+
+app.post("/api/revive", (c) => {
+  const agent = getAgent();
+  agent.revive();
+  return c.json({ status: "RUNNING", message: "Agent resumed" });
+});
+
+// --- MULTI-WALLET ---
+app.get("/api/wallets", (c) => {
+  // TODO: List configured wallets
+  return c.json({ wallets: [], current: "default" });
+});
+
+app.post("/api/wallets/switch", async (c) => {
+  // TODO: Switch active wallet
+  const body = await c.req.json();
+  return c.json({ switched: true, wallet: body.wallet });
+});
+
+// --- START SERVER ---
 const PORT = 3001;
 
-const agent = getAgent();
-agent.start().then(() => {
+async function main() {
+  const agent = getAgent();
+  await agent.start();
   Bun.serve({ port: PORT, fetch: app.fetch });
   console.log(`🤖 ArcGent API running on port ${PORT}`);
-}).catch(console.error);
+}
+
+main().catch(console.error);
