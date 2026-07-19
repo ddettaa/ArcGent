@@ -13,6 +13,9 @@ export interface Config {
     circleClientKey: string;
     agentPrivateKey: string;
     agentRulesPath: string;
+    llmBaseUrl: string;
+    llmApiKey: string;
+    llmModel: string;
 }
 
 function loadEnv() {
@@ -45,5 +48,8 @@ export function createConfig(): Config {
         circleClientKey: process.env.CIRCLE_CLIENT_KEY || '',
         agentPrivateKey: process.env.AGENT_PRIVATE_KEY || '',
         agentRulesPath: process.env.AGENT_RULES_PATH || './config/rules.json',
+        llmBaseUrl: process.env.LLM_BASE_URL || '',
+        llmApiKey: process.env.LLM_API_KEY || '',
+        llmModel: process.env.LLM_MODEL || 'btlbagus',
     };
 }

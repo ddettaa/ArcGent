@@ -5,6 +5,8 @@ import { cors } from "hono/cors";
 import { getAgent, type AgentRule } from "./agent.js";
 import { getApprovalEngine, type ApprovalRequest } from "./approval/engine.js";
 import { requireAdmin, requireOperator, requireViewer, extractKey, getAuth } from "./auth/keys.js";
+import type { SignalContext } from "./ai/evaluator.js";
+import { getEvaluator } from "./ai/evaluator.js";
 
 const app = new Hono();
 app.use("/*", cors());
@@ -179,6 +181,28 @@ app.get("/api/auth/keys", (c) => {
   if (!requireAdmin(c.req.raw)) return c.json({ error: "Unauthorized" }, 403);
   const auth = getAuth();
   return c.json({ adminKey: auth.getAdminKey(), note: "Set ARC_ADMIN_KEY in .env to persist" });
+});
+
+// --- AI EVALUATION ---
+app.post("/api/ai/evaluate", async (c) => {
+  if (!requireOperator(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
+  const agent = getAgent();
+  const body = await c.req.json();
+  const ruleId = body.ruleId || "ai-default";
+  const context: SignalContext = {
+    type: body.type || "generic",
+    title: body.title || "Untitled",
+    description: body.description || body.rawData?.title || "",
+    rawData: body.rawData || {},
+  };
+  const result = await agent.evaluateWithAI(ruleId, context);
+  return c.json(result);
+});
+
+app.get("/api/ai/stats", (c) => {
+  if (!requireViewer(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
+  const evaluator = getEvaluator();
+  return c.json(evaluator.getStats());
 });
 
 // --- START SERVER ---

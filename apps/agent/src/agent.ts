@@ -9,6 +9,7 @@ import { GitHubListener, type GitHubSignal } from "./signals/github.js";
 import { APISignal } from "./signals/api.js";
 import { getApprovalEngine, type ApprovalRequest, type ApprovalTier } from "./approval/engine.js";
 import { getSignalManager } from "./signals/real.js";
+import { getEvaluator, type AIEvaluation, type SignalContext } from "./ai/evaluator.js";
 import { Logger } from "./utils/logger.js";
 import { readFileSync, writeFileSync, existsSync } from "fs";
 
@@ -18,7 +19,7 @@ export interface AgentRule {
   id: string;
   name: string;
   signal: {
-    source: "github" | "api" | "webhook" | "oracle";
+    source: "github" | "api" | "webhook" | "oracle" | "ai";
     trigger: string;
     conditions: Record<string, any>;
   };
@@ -151,6 +152,48 @@ export class ArcGentAgent {
     }
 
     return { matched: matchingRules.length, triggered: matchingRules.length };
+  }
+
+  // --- AI Signal Evaluation ---
+  async evaluateWithAI(
+    ruleId: string,
+    context: SignalContext
+  ): Promise<AIEvaluation & { paymentTx?: string }> {
+    const evaluator = getEvaluator(this.config);
+    const evaluation = await evaluator.evaluate(context);
+
+    const rule = this.rules.find(r => r.id === ruleId);
+    if (!rule) {
+      return { ...evaluation, paymentTx: undefined };
+    }
+
+    // Log the AI decision
+    logger.info(
+      `🧠 AI Decision: ${evaluation.approved ? "PAY" : "REJECT"} — ` +
+      `${evaluation.amount} USDC (${evaluation.confidence}% confidence, ${evaluation.severity}) — ` +
+      `${evaluation.reasoning.slice(0, 80)}`
+    );
+
+    if (evaluation.approved && evaluation.confidence >= 60) {
+      // Override rule amount with AI-suggested amount
+      rule.action.amount = evaluation.amount;
+      rule.action.memo = `AI: ${evaluation.reasoning.slice(0, 50)}`;
+
+      if (evaluation.confidence < 80) {
+        // Low confidence — force MANUAL approval
+        logger.info(`⚠️ Low confidence (${evaluation.confidence}%) — escalating to manual approval`);
+      }
+
+      try {
+        await this.executePayment(rule, evaluation);
+        return { ...evaluation };
+      } catch (e) {
+        logger.error(`AI payment failed: ${e}`);
+        return { ...evaluation, paymentTx: undefined };
+      }
+    }
+
+    return evaluation;
   }
 
   // --- Persistence ---
@@ -357,7 +400,7 @@ export class ArcGentAgent {
     return (Date.now() - last) < rule.cooldown * 1000;
   }
 
-  private async executePayment(rule: AgentRule) {
+  private async executePayment(rule: AgentRule, aiEval?: AIEvaluation) {
     if (this.killed) {
       logger.info(`🔴 Payment blocked (kill switch): ${rule.name}`);
       return;
@@ -373,13 +416,17 @@ export class ArcGentAgent {
       amount: rule.action.amount,
       status: "pending",
       timestamp: new Date().toISOString(),
+      approvalTier: aiEval ? (aiEval.confidence >= 80 ? "AUTO" : "MANUAL") : undefined,
     };
     this.payments.push(record);
 
-    // --- 3-TIER APPROVAL ---
+    // If AI evaluation with low confidence → force MANUAL tier
+    const effectiveAmount = aiEval?.amount || rule.action.amount;
+    const tierOverride = aiEval && aiEval.confidence < 80 ? "MANUAL" as const : undefined;
+
     const doExecute = async (req: ApprovalRequest) => {
       try {
-        logger.info(`⚡ Executing: ${rule.action.type} ${rule.action.amount} USDC → ${rule.action.recipient}`);
+        logger.info(`⚡ Executing: ${rule.action.type} ${effectiveAmount} USDC → ${rule.action.recipient}`);
         const txHash = await this.circleWallet.sendUSDC(
           rule.action.recipient,
           rule.action.amount,
