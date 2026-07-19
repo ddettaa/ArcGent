@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { WalletProvider } from '@/components/WalletProvider';
 
 export const metadata: Metadata = {
   title: 'ArcGent — Autonomous Signal-to-Payment Agents',
@@ -25,7 +26,11 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body>{children}</body>
+      <body>
+        <WalletProvider>
+          {children}
+        </WalletProvider>
+      </body>
     </html>
   );
 }

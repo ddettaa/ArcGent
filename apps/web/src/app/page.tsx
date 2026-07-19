@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { WalletConnectCompact } from "@/components/WalletConnect";
 
 const C = {
   sand: "#f4f0e6", ink: "#0b1a33", ocean: "#1b3158",
@@ -50,9 +51,12 @@ export default function Landing() {
             <span key={l} onClick={() => document.getElementById(["hw","uc","try"][i])?.scrollIntoView({behavior:"smooth"})} style={{ cursor:"pointer" }}>{l}</span>
           ))}
         </nav>
-        <Link href="/dashboard" style={{ padding:"11px 15px", color:"white", background:C.coral, fontSize:8, fontWeight:900, textTransform:"uppercase", textDecoration:"none", borderRadius:3 }}>
-          Launch Agent ↗
-        </Link>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          <WalletConnectCompact />
+          <Link href="/dashboard" style={{ padding:"11px 15px", color:"white", background:C.coral, fontSize:8, fontWeight:900, textTransform:"uppercase", textDecoration:"none", borderRadius:3 }}>
+            Launch Agent ↗
+          </Link>
+        </div>
       </header>
 
       {/* HERO — What is ArcGent in 10 seconds */}
@@ -70,8 +74,8 @@ export default function Landing() {
             Not "IF/THEN" rules. AI reasoning: "This fix is critical → pay $600."
           </p>
           <div style={{ marginTop:20, display:"flex", gap:12, alignItems:"center" }}>
-            <Link href="/dashboard" style={{ padding:"12px 20px", background:C.ocean, color:"white", fontSize:10, fontWeight:800, textDecoration:"none", borderRadius:3 }}>
-              Try It Now
+            <Link href="/onboarding" style={{ padding:"12px 20px", background:C.ocean, color:"white", fontSize:10, fontWeight:800, textDecoration:"none", borderRadius:3 }}>
+              Get Started
             </Link>
             <Link href="/dashboard" style={{ padding:"12px 20px", border:`1px solid ${C.ocean}`, color:C.ocean, fontSize:10, fontWeight:800, textDecoration:"none", borderRadius:3 }}>
               View Dashboard
@@ -282,7 +286,7 @@ export default function Landing() {
         <p style={{ maxWidth:400, margin:"0 auto 32px", fontSize:12, lineHeight:1.4, opacity:0.9 }}>
           Connect your wallet, pick a template, and let the AI agent handle payments while you sleep.
         </p>
-        <Link href="/dashboard" style={{ display:"inline-block", padding:"16px 32px", background:C.coral, color:"white", fontSize:12, fontWeight:900, textDecoration:"none", borderRadius:3, textTransform:"uppercase" }}>
+        <Link href="/onboarding" style={{ display:"inline-block", padding:"16px 32px", background:C.coral, color:"white", fontSize:12, fontWeight:900, textDecoration:"none", borderRadius:3, textTransform:"uppercase" }}>
           Launch ArcGent
         </Link>
       </section>
