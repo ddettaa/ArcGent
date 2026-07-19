@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAccount } from "wagmi";
 import { WalletConnect } from "@/components/WalletConnect";
 import { CheckCircle, ArrowRight, Wallet, Settings, Zap } from "lucide-react";
@@ -27,12 +27,12 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
 
   // Fetch templates on mount
-  useState(() => {
+  useEffect(() => {
     fetch("/api/templates")
       .then(r => r.json())
       .then(setTemplates)
       .catch(console.error);
-  });
+  }, []);
 
   const steps: OnboardingStep[] = [
     {
