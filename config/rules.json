@@ -1,0 +1,95 @@
+{
+  "rules": [
+    {
+      "id": "bug-bounty-1",
+      "name": "Auto Bug Bounty",
+      "description": "Pay developer when PR with 'fix' label is merged",
+      "signal": {
+        "source": "github",
+        "trigger": "pull_request.merged",
+        "conditions": {
+          "label": "fix",
+          "repo": "ddettaa/arcgent-demo"
+        }
+      },
+      "action": {
+        "type": "pay",
+        "recipient": "0x1234567890abcdef1234567890abcdef12345678",
+        "amount": 50,
+        "currency": "USDC",
+        "memo": "Bug bounty: fix merged",
+        "onchainVerify": true
+      },
+      "enabled": false,
+      "cooldown": 3600
+    },
+    {
+      "id": "flight-delay-1",
+      "name": "Flight Delay Refund",
+      "description": "Refund traveler when flight delayed > 2 hours",
+      "signal": {
+        "source": "api",
+        "trigger": "flight.delayed",
+        "conditions": {
+          "delay_hours": 2,
+          "flight_iata": "GA123"
+        },
+        "endpoint": "https://api.aviationstack.com/v1/flights"
+      },
+      "action": {
+        "type": "refund",
+        "recipient": "0xabcdef1234567890abcdef1234567890abcdef12",
+        "amount": 100,
+        "currency": "USDC",
+        "memo": "Flight delay compensation"
+      },
+      "enabled": false,
+      "cooldown": 86400
+    },
+    {
+      "id": "tip-stream-1",
+      "name": "Content Tip Stream",
+      "description": "Tip writer when content hits 1000 reads",
+      "signal": {
+        "source": "api",
+        "trigger": "page.views",
+        "conditions": {
+          "threshold": 1000
+        },
+        "endpoint": "https://api.example.com/analytics/article/123"
+      },
+      "action": {
+        "type": "tip",
+        "recipient": "0x9876543210fedcba9876543210fedcba98765432",
+        "amount": 5,
+        "currency": "USDC",
+        "memo": "Content milestone tip"
+      },
+      "enabled": false,
+      "cooldown": 604800
+    },
+    {
+      "id": "accountability-1",
+      "name": "Gym Accountability",
+      "description": "Pay partner if no gym activity for a week",
+      "signal": {
+        "source": "api",
+        "trigger": "custom.check",
+        "conditions": {
+          "endpoint": "https://api.strava.com/api/v3/athlete/activities",
+          "json_path": "length",
+          "threshold": 3
+        }
+      },
+      "action": {
+        "type": "pay",
+        "recipient": "0xabcdef1234567890abcdef1234567890abcdef12",
+        "amount": 20,
+        "currency": "USDC",
+        "memo": "Accountability partner payment"
+      },
+      "enabled": false,
+      "cooldown": 604800
+    }
+  ]
+}
