@@ -1,0 +1,33 @@
+[
+  {
+    "id": "pay_1784457910757_u3d8qd",
+    "ruleId": "test-payment-1",
+    "to": "0x742d35Cc6634C0532925a3b844Bc9e7595f2a3d8",
+    "amount": 0.01,
+    "status": "failed",
+    "timestamp": "2026-07-19T10:45:10.757Z",
+    "approvalTier": "AUTO",
+    "approvalId": "test-payment-1-1784457910757"
+  },
+  {
+    "id": "pay_1784458051995_agzbzo",
+    "ruleId": "test-payment-1",
+    "to": "0x742d35Cc6634C0532925a3b844Bc9e7595f2a3d8",
+    "amount": 0.01,
+    "status": "failed",
+    "timestamp": "2026-07-19T10:47:31.995Z",
+    "approvalTier": "AUTO",
+    "approvalId": "test-payment-1-1784458051995"
+  },
+  {
+    "id": "pay_1784458074078_6ve7dk",
+    "ruleId": "test-send-1",
+    "to": "0x3695F3261cc7FB2e54106df524c12ce9FFd9a556",
+    "amount": 0.01,
+    "status": "confirmed",
+    "timestamp": "2026-07-19T10:47:54.078Z",
+    "approvalTier": "AUTO",
+    "approvalId": "test-send-1-1784458074078",
+    "txHash": "0xd1e032527489217973f047b551691cc83637a6e5ea8b89d46bb5a221b617c8ff"
+  }
+]

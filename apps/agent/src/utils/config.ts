@@ -1,5 +1,6 @@
 // Configuration management
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
+import { join } from 'path';
 
 export interface Config {
     arcRpcUrl: string;
@@ -9,24 +10,30 @@ export interface Config {
     circleEntitySecret: string;
     circleWalletId: string;
     circleKitKey: string;
+    circleClientKey: string;
     agentPrivateKey: string;
     agentRulesPath: string;
 }
 
-export function createConfig(): Config {
-    // Load .env if it exists
-    try {
-        const envFile = readFileSync('.env', 'utf-8');
-        envFile.split('\n').forEach(line => {
-            const [key, ...values] = line.split('=');
-            if (key && values.length && !key.startsWith('#')) {
-                process.env[key.trim()] = values.join('=').trim();
-            }
-        });
-    } catch (e) {
-        // .env not found, rely on process.env
+function loadEnv() {
+    const paths = ['.env', '../.env', '../../.env', join(process.cwd(), '.env')];
+    for (const envPath of paths) {
+        try {
+            if (!existsSync(envPath)) continue;
+            const envFile = readFileSync(envPath, 'utf-8');
+            envFile.split('\n').forEach(line => {
+                const [key, ...values] = line.split('=');
+                if (key && values.length && !key.startsWith('#')) {
+                    process.env[key.trim()] = values.join('=').trim();
+                }
+            });
+            return;
+        } catch { /* continue */ }
     }
+}
 
+export function createConfig(): Config {
+    loadEnv();
     return {
         arcRpcUrl: process.env.ARC_RPC_URL || 'https://rpc.testnet.arc.network',
         arcChainId: parseInt(process.env.ARC_CHAIN_ID || '5042002'),
@@ -35,6 +42,7 @@ export function createConfig(): Config {
         circleEntitySecret: process.env.CIRCLE_ENTITY_SECRET || '',
         circleWalletId: process.env.CIRCLE_WALLET_ID || '',
         circleKitKey: process.env.CIRCLE_KIT_KEY || '',
+        circleClientKey: process.env.CIRCLE_CLIENT_KEY || '',
         agentPrivateKey: process.env.AGENT_PRIVATE_KEY || '',
         agentRulesPath: process.env.AGENT_RULES_PATH || './config/rules.json',
     };
