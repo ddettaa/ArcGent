@@ -168,7 +168,7 @@ export default function Dashboard() {
   const pendingApprovals = approvals.filter((a: any) => a.status === "pending_review" || a.status === "pending_manual").length;
 
   return (
-    <div style={{ minHeight: "100vh", background: C.sand, fontFamily: "'DM Sans', sans-serif", color: C.ink }}>
+    <div style={{ minHeight: "100vh", background: C.sand, fontFamily: "'DM Sans', sans-serif", color: C.ink }} suppressHydrationWarning>
       {/* HEADER */}
       <header style={{
         position: "sticky", top: 0, zIndex: 50,
