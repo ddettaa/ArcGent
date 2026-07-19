@@ -1,0 +1,16 @@
+{
+  "name": "@arcgent/shared",
+  "version": "0.1.0",
+  "description": "Shared types and utilities for ArcGent",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "viem": "^2.55.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0"
+  }
+}

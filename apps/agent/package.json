@@ -1,0 +1,21 @@
+{
+  "name": "@arcgent/agent",
+  "version": "0.1.0",
+  "description": "Autonomous signal-to-payment agent — backend",
+  "scripts": {
+    "dev": "bun run src/index.ts",
+    "agent": "bun run src/agent.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "start": "bun run dist/index.js",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@circle-fin/app-kit": "^1.10.0",
+    "@circle-fin/adapter-viem-v2": "^1.14.0",
+    "viem": "^2.55.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  }
+}

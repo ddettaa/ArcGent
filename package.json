@@ -2,17 +2,21 @@
   "name": "arcgent",
   "version": "0.1.0",
   "description": "Autonomous signal-to-payment agents on Arc + Circle Agent Stack",
-  "main": "index.js",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "bun run src/index.ts",
-    "agent": "bun run src/agent.ts",
-    "test": "bun test"
+    "dev:web": "cd apps/web && bun run dev",
+    "dev:agent": "cd apps/agent && bun run dev",
+    "build:web": "cd apps/web && bun run build",
+    "build": "bun run build:web",
+    "test": "bun test",
+    "lint": "bun run lint:web && bun run lint:agent",
+    "lint:web": "cd apps/web && bun run lint",
+    "lint:agent": "cd apps/agent && bun run lint"
   },
-  "keywords": ["arc", "circle", "agent", "usdc", "payment", "autonomous"],
-  "license": "MIT",
-  "dependencies": {
-    "@circle-fin/adapter-viem-v2": "^1.14.0",
-    "@circle-fin/app-kit": "^1.10.0",
-    "viem": "^2.55.2"
-  }
+  "keywords": ["arc", "circle", "agent", "usdc", "payment", "autonomous", "monorepo"],
+  "license": "MIT"
 }
