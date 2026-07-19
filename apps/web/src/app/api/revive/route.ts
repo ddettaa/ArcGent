@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
+import { agentPost } from "../_lib";
 
-const AGENT_API = process.env.AGENT_API_URL || "http://localhost:3001";
-
-export async function POST(req: Request) {
+export async function POST() {
   try {
-    const res = await fetch(`${AGENT_API}/api/revive`, { method: "POST" });
-    if (!res.ok) return NextResponse.json({ error: "Agent unavailable" }, { status: 503 });
+    const res = await agentPost("/api/revive");
+    if (!res.ok) return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     return NextResponse.json(await res.json());
   } catch {
     return NextResponse.json({ error: "Cannot connect" }, { status: 503 });

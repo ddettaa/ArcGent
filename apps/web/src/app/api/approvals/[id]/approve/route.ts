@@ -1,10 +1,9 @@
 import { NextResponse } from "next/server";
-
-const AGENT_API = process.env.AGENT_API_URL || "http://localhost:3001";
+import { agentPost } from "../../../_lib";
 
 export async function POST(req: Request, { params }: { params: { id: string } }) {
   try {
-    const res = await fetch(`${AGENT_API}/api/approvals/${params.id}/approve`, { method: "POST" });
+    const res = await agentPost(`/api/approvals/${params.id}/approve`);
     if (!res.ok) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(await res.json());
   } catch {
