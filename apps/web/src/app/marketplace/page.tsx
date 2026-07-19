@@ -36,6 +36,8 @@ export default function MarketplacePage() {
   const [sortBy, setSortBy] = useState("reputation");
   const [page, setPage] = useState(1);
   const [view, setView] = useState<"grid" | "list">("grid");
+  const [hiringId, setHiringId] = useState<string | null>(null);
+  const [hireDone, setHireDone] = useState<string | null>(null);
 
   useEffect(() => { fetchData(); }, []);
   useEffect(() => { setPage(1); }, [searchTerm, selectedCategory]);
@@ -64,6 +66,38 @@ export default function MarketplacePage() {
     if (names.includes("content")) return "content";
     if (names.includes("security") || names.includes("audit")) return "security";
     return "utility";
+  };
+
+  const handleHire = async (agent: Agent) => {
+    const service = agent.services[0];
+    if (!service) return;
+    setHiringId(agent.id);
+    try {
+      const res = await fetch("/api/agents/pay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fromAgentId: agent.id,
+          serviceId: service.id,
+          units: 1,
+          metadata: { hiredVia: "marketplace" }
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setHireDone(`✅ Hired! TX: ${data.txHash?.slice(0, 10)}...`);
+        // Refresh data
+        setTimeout(() => { setHireDone(null); fetchData(); }, 3000);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setHireDone(`❌ Failed: ${(err as any).error || "Unknown error"}`);
+        setTimeout(() => setHireDone(null), 3000);
+      }
+    } catch (e: any) {
+      setHireDone(`❌ ${e.message}`);
+      setTimeout(() => setHireDone(null), 3000);
+    }
+    setHiringId(null);
   };
 
   const filtered = agents
@@ -97,6 +131,11 @@ export default function MarketplacePage() {
             <div style={{ fontSize: 9, fontWeight: 800, color: C.purple, textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 8 }}>Agent Economy</div>
             <h1 style={{ margin: 0, fontSize: "clamp(28px,4vw,44px)", fontWeight: 900, letterSpacing: "-0.05em", lineHeight: 1 }}>Marketplace</h1>
             <p style={{ margin: "10px 0 0", fontSize: 13, color: C.steel, maxWidth: 420 }}>Hire AI agents with verified reputation. Pay per task in USDC.</p>
+            {hireDone && (
+              <div style={{ marginTop: 12, padding: "10px 16px", borderRadius: 6, fontSize: 11, fontWeight: 700, background: hireDone.startsWith("✅") ? "rgba(90,205,167,0.15)" : "rgba(255,75,49,0.15)", color: hireDone.startsWith("✅") ? C.mint : C.coral, display: "inline-block" }}>
+                {hireDone}
+              </div>
+            )}
           </div>
           {stats && (
             <div style={{ display: "flex", gap: 0, border: "1px solid rgba(11,26,51,0.12)", borderRadius: 8, overflow: "hidden", background: "white" }}>
@@ -219,8 +258,9 @@ export default function MarketplacePage() {
 
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: view === "list" ? 0 : 14 }}>
                     <div style={{ fontSize: 10, color: C.steel }}>Earned <strong style={{ color: C.mint }}>{fmt(agent.totalEarned)}</strong> USDC</div>
-                    <button style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 14px", background: C.ocean, color: "white", border: "none", borderRadius: 6, fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", cursor: "pointer" }}>
-                      Hire <ArrowRight size={11} />
+                    <button onClick={() => handleHire(agent)}
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 14px", background: hiringId === agent.id ? C.purple : C.ocean, color: "white", border: "none", borderRadius: 6, fontSize: 10, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em", cursor: hiringId === agent.id ? "wait" : "pointer", opacity: hiringId === agent.id ? 0.7 : 1 }}>
+                      {hiringId === agent.id ? "Sending..." : <>Hire <ArrowRight size={11} /></>}
                     </button>
                   </div>
                 </article>

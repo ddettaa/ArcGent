@@ -16,6 +16,17 @@ const C = {
 
 const ITEMS_PER_PAGE = 8;
 
+function downloadCSV(data: any[], filename: string) {
+  if (!data.length) return;
+  const headers = Object.keys(data[0]);
+  const csv = [headers.join(","), ...data.map((row: any) => headers.map(h => JSON.stringify(row[h] ?? "")).join(","))].join("\n");
+  const blob = new Blob([csv], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
 interface PaymentStats {
   totalVolume: number;
   totalPayments: number;
@@ -97,8 +108,9 @@ export default function AnalyticsPage() {
       <NavBar
         ctaLabel="Export"
         ctaHref="#"
+        ctaClick={() => downloadCSV(allActivity, `arcgent-analytics-${timeRange}.csv`)}
         extraLinks={[
-          { href: "#", label: `${timeRange === "24h" ? "24H" : timeRange === "7d" ? "7D" : "30D"} ▾` }
+          { href: "#", label: `${timeRange === "24h" ? "24H" : timeRange === "7d" ? "7D" : "30D"}` }
         ]}
       />
 

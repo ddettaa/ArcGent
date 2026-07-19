@@ -23,6 +23,8 @@ interface NavBarProps {
   showWallet?: boolean;
   /** Dark background variant for landing header */
   dark?: boolean;
+  /** onClick handler for CTA button (replaces href) */
+  ctaClick?: () => void;
 }
 
 export default function NavBar({
@@ -31,6 +33,7 @@ export default function NavBar({
   ctaHref = "/onboarding",
   showWallet = false,
   dark = false,
+  ctaClick,
 }: NavBarProps) {
   const pathname = usePathname();
   const active = (href: string) => pathname === href || pathname?.startsWith(href + "/");
@@ -112,17 +115,31 @@ export default function NavBar({
       {/* Right side: Wallet + CTA */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
         {showWallet && <WalletConnectCompact />}
-        <Link href={ctaHref} style={{
-          padding: "10px 16px", color: "white",
-          background: dark ? C.mint : C.coral,
-          fontSize: 9, fontWeight: 900, textTransform: "uppercase",
-          textDecoration: "none", borderRadius: 4,
-          whiteSpace: "nowrap", transition: "background 0.2s",
-        }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = dark ? C.coral : C.purple; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = dark ? C.mint : C.coral; }}>
-          {ctaLabel}
-        </Link>
+        {ctaClick ? (
+          <button onClick={ctaClick} style={{
+            padding: "10px 16px", color: "white",
+            background: dark ? C.mint : C.coral,
+            fontSize: 9, fontWeight: 900, textTransform: "uppercase",
+            border: "none", borderRadius: 4, cursor: "pointer",
+            whiteSpace: "nowrap", transition: "background 0.2s",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = dark ? C.coral : C.purple; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = dark ? C.mint : C.coral; }}>
+            {ctaLabel}
+          </button>
+        ) : (
+          <Link href={ctaHref} style={{
+            padding: "10px 16px", color: "white",
+            background: dark ? C.mint : C.coral,
+            fontSize: 9, fontWeight: 900, textTransform: "uppercase",
+            textDecoration: "none", borderRadius: 4,
+            whiteSpace: "nowrap", transition: "background 0.2s",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = dark ? C.coral : C.purple; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = dark ? C.mint : C.coral; }}>
+            {ctaLabel}
+          </Link>
+        )}
       </div>
     </header>
   );
