@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import { 
   Bot, Radio, Brain, Zap, CheckCircle, CreditCard, 
   Plus, RefreshCw, ExternalLink, Shield, ShieldAlert,
-  X, Play, AlertTriangle, Clock, DollarSign,
+  X, Play, AlertTriangle, Clock, DollarSign, Sparkles,
+  Cpu, Loader2, ArrowRight,
 } from "lucide-react";
 
 const C = {
@@ -166,6 +167,14 @@ export default function Dashboard() {
   const isKilled = status?.status === "KILLED";
   const confirmedCount = payments.filter(p => p.status === "confirmed").length;
   const pendingApprovals = approvals.filter((a: any) => a.status === "pending_review" || a.status === "pending_manual").length;
+
+  function ForRole({ role, children }: { role: string; children: React.ReactNode }) {
+    // TODO: wire to login session. Defaults to admin for now
+    const currentRole = (typeof window !== "undefined" && sessionStorage.getItem("arc_role")) || "admin";
+    const level: Record<string, number> = { viewer: 0, operator: 1, admin: 2 };
+    if ((level[currentRole] || 0) < (level[role] || 0)) return null;
+    return <>{children}</>;
+  }
 
   return (
     <div style={{ minHeight: "100vh", background: C.sand, fontFamily: "'DM Sans', sans-serif", color: C.ink }} suppressHydrationWarning>
@@ -339,6 +348,11 @@ export default function Dashboard() {
           </div>
         </div>
 
+        {/* AI BRAIN — LIVE EVALUATION */}
+        <ForRole role="operator">
+          <AIEvaluationPanel />
+        </ForRole>
+
         {/* RULES */}
         <div style={{ background: "white", borderRadius: 12, border: "1px solid rgba(11,26,51,0.08)", padding: 24, marginBottom: 24 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -471,7 +485,160 @@ export default function Dashboard() {
         </div>
       )}
 
-      <style dangerouslySetInnerHTML={{ __html: `@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}` }} />
+      <style dangerouslySetInnerHTML={{ __html: `@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.3}}@keyframes spin{to{transform:rotate(360deg)}}` }} />
+    </div>
+  );
+}
+
+// --- AI EVALUATION PANEL ---
+function AIEvaluationPanel() {
+  const [aiInput, setAiInput] = useState({ type: "bug_bounty", title: "", description: "", details: "" });
+  const [aiResult, setAiResult] = useState<any>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const runAI = async () => {
+    if (!aiInput.title || !aiInput.description) return;
+    setAiLoading(true);
+    setAiResult(null);
+    try {
+      const res = await fetch("/api/ai/evaluate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ruleId: "dashboard-eval",
+          type: aiInput.type,
+          title: aiInput.title,
+          description: aiInput.description,
+          rawData: JSON.parse(aiInput.details || "{}"),
+        }),
+      });
+      const data = await res.json();
+      setAiResult(data);
+    } catch (e) {
+      setAiResult({ error: "Evaluation failed" });
+    }
+    setAiLoading(false);
+  };
+
+  const severityColors: Record<string, string> = {
+    critical: C.coral, high: "#ff6b35", medium: C.gold, low: C.mint, trivial: C.steel,
+  };
+
+  return (
+    <div style={{ background: "white", borderRadius: 12, border: `1px solid rgba(159,114,255,0.3)`, padding: 24, marginBottom: 24 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+        <Cpu size={18} color={C.purple} />
+        <div style={{ fontSize: 14, fontWeight: 800, color: C.ink }}>🧠 AI Evaluation</div>
+        <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 9, fontWeight: 700, background: C.purple, color: "white" }}>LLM</span>
+      </div>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        {/* Input */}
+        <div>
+          <label style={{ fontSize: 11, fontWeight: 700, color: C.steel, display: "block", marginBottom: 4 }}>Scenario Type</label>
+          <select value={aiInput.type} onChange={e => setAiInput({ ...aiInput, type: e.target.value })}
+            style={{ width: "100%", padding: 8, border: "1px solid rgba(11,26,51,0.15)", borderRadius: 6, fontSize: 12, marginBottom: 8, boxSizing: "border-box" }}>
+            <option value="bug_bounty">Bug Bounty</option>
+            <option value="content_review">Content Review</option>
+            <option value="dispute">Dispute Resolution</option>
+            <option value="generic">Generic</option>
+          </select>
+
+          <label style={{ fontSize: 11, fontWeight: 700, color: C.steel, display: "block", marginBottom: 4 }}>Title</label>
+          <input placeholder="e.g., Fix reentrancy vulnerability" value={aiInput.title} onChange={e => setAiInput({ ...aiInput, title: e.target.value })}
+            style={{ width: "100%", padding: 8, border: "1px solid rgba(11,26,51,0.15)", borderRadius: 6, fontSize: 12, marginBottom: 8, boxSizing: "border-box" }} />
+
+          <label style={{ fontSize: 11, fontWeight: 700, color: C.steel, display: "block", marginBottom: 4 }}>Description</label>
+          <textarea placeholder="Describe the change or content..." value={aiInput.description} onChange={e => setAiInput({ ...aiInput, description: e.target.value })}
+            style={{ width: "100%", padding: 8, border: "1px solid rgba(11,26,51,0.15)", borderRadius: 6, fontSize: 12, minHeight: 80, resize: "vertical", marginBottom: 8, boxSizing: "border-box", fontFamily: "inherit" }} />
+
+          <label style={{ fontSize: 11, fontWeight: 700, color: C.steel, display: "block", marginBottom: 4 }}>Details (JSON)</label>
+          <input placeholder='{"author":"alice","contributions":8}' value={aiInput.details} onChange={e => setAiInput({ ...aiInput, details: e.target.value })}
+            style={{ width: "100%", padding: 8, border: "1px solid rgba(11,26,51,0.15)", borderRadius: 6, fontSize: 12, marginBottom: 12, boxSizing: "border-box" }} />
+
+          <button onClick={runAI} disabled={aiLoading} style={{
+            display: "flex", alignItems: "center", gap: 8, padding: "10px 20px",
+            background: C.purple, color: "white", border: "none", borderRadius: 8,
+            fontSize: 12, fontWeight: 700, cursor: "pointer", width: "100%", justifyContent: "center",
+            opacity: aiLoading ? 0.7 : 1,
+          }}>
+            {aiLoading ? <Loader2 size={16} style={{ animation: "spin 1s linear infinite" }} /> : <Sparkles size={16} />}
+            {aiLoading ? "AI Thinking..." : "Evaluate with AI"}
+          </button>
+        </div>
+
+        {/* Output */}
+        <div>
+          {aiResult ? (
+            <div style={{ padding: 16, background: "rgba(11,26,51,0.02)", borderRadius: 8, border: "1px solid rgba(11,26,51,0.06)", height: "100%", boxSizing: "border-box" }}>
+              {aiResult.error ? (
+                <div style={{ color: C.coral, fontSize: 13 }}>{aiResult.error}</div>
+              ) : (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                    <div style={{
+                      width: 48, height: 48, borderRadius: 12, display: "grid", placeItems: "center",
+                      background: aiResult.approved ? "rgba(90,205,167,0.15)" : "rgba(255,75,49,0.15)",
+                    }}>
+                      {aiResult.approved ? <CheckCircle size={24} color={C.mint} /> : <X size={24} color={C.coral} />}
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 18, fontWeight: 900, color: aiResult.approved ? C.mint : C.coral }}>
+                        {aiResult.approved ? "APPROVED" : "REJECTED"}
+                      </div>
+                      {aiResult.approved && (
+                        <div style={{ fontSize: 22, fontWeight: 900, color: C.purple }}>
+                          {aiResult.amount} USDC
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+                    <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 10, fontWeight: 700, background: "rgba(159,114,255,0.1)", color: C.purple }}>
+                      {aiResult.confidence}% confidence
+                    </span>
+                    {aiResult.severity && (
+                      <span style={{
+                        padding: "3px 10px", borderRadius: 6, fontSize: 10, fontWeight: 700,
+                        background: (severityColors[aiResult.severity] || C.steel) + "20",
+                        color: severityColors[aiResult.severity] || C.steel,
+                      }}>
+                        {aiResult.severity.toUpperCase()}
+                      </span>
+                    )}
+                    {aiResult.tokensUsed && (
+                      <span style={{ padding: "3px 10px", borderRadius: 6, fontSize: 10, fontWeight: 700, background: "rgba(11,26,51,0.06)", color: C.steel }}>
+                        {aiResult.tokensUsed} tokens
+                      </span>
+                    )}
+                  </div>
+
+                  <div style={{
+                    padding: 12, background: "rgba(11,26,51,0.03)", borderRadius: 6,
+                    fontSize: 12, color: C.ink, lineHeight: 1.5,
+                  }}>
+                    <span style={{ fontWeight: 700, color: C.steel, fontSize: 10, display: "block", marginBottom: 4 }}>AI REASONING</span>
+                    {aiResult.reasoning}
+                  </div>
+
+                  {aiResult.model && (
+                    <div style={{ fontSize: 9, color: C.steel, marginTop: 8 }}>
+                      Model: {aiResult.model}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          ) : (
+            <div style={{ padding: 40, textAlign: "center", color: C.steel, fontSize: 13, height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", border: "1px dashed rgba(11,26,51,0.15)", borderRadius: 8, boxSizing: "border-box" }}>
+              <Cpu size={32} color={C.surf} style={{ marginBottom: 12 }} />
+              <div style={{ fontWeight: 600 }}>AI Evaluation Result</div>
+              <div style={{ fontSize: 11, marginTop: 4 }}>Fill the form and click Evaluate</div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
