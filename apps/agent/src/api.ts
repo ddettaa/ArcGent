@@ -5,12 +5,12 @@ import { cors } from "hono/cors";
 import { getAgent, type AgentRule } from "./agent.js";
 import { getApprovalEngine, type ApprovalRequest } from "./approval/engine.js";
 import { requireAdmin, requireOperator, requireViewer, extractKey, getAuth } from "./auth/keys.js";
-import type { SignalContext } from "./ai/evaluator.js";
-import { getEvaluator } from "./ai/evaluator.js";
+import { getEvaluator, type SignalContext } from "./ai/evaluator.js";
 import { TEMPLATES, instantiateTemplate } from "./rules/templates.js";
-import { getPaymaster } from "./payments/paymaster.js";
 import { getAgentPayments } from "./agents/payments.js";
 import { createConfig } from "./utils/config.js";
+import { getDb, schema } from "./db/index.js";
+import { sql, eq } from "drizzle-orm";
 
 const app = new Hono();
 app.use("/*", cors());
@@ -340,11 +340,98 @@ app.get("/api/ai/stats", (c) => {
 const PORT = 3001;
 
 async function main() {
+  // Auto-migrate: ensures DB is always up-to-date
+  const db = getDb();
+  const sqlite = (db as any).$client as import("bun:sqlite").Database;
+  sqlite.run(`
+    CREATE TABLE IF NOT EXISTS rules (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, signal_source TEXT NOT NULL,
+      signal_trigger TEXT NOT NULL, signal_conditions TEXT DEFAULT '{}',
+      action_type TEXT NOT NULL, action_recipient TEXT NOT NULL,
+      action_amount REAL NOT NULL, action_currency TEXT DEFAULT 'USDC',
+      action_memo TEXT, enabled INTEGER DEFAULT 1, cooldown INTEGER,
+      created_by TEXT, template_id TEXT, config TEXT DEFAULT '{}',
+      created_at INTEGER DEFAULT (unixepoch() * 1000),
+      updated_at INTEGER DEFAULT (unixepoch() * 1000)
+    );
+    CREATE TABLE IF NOT EXISTS payments (
+      id TEXT PRIMARY KEY, rule_id TEXT, from_agent TEXT, to_agent TEXT,
+      "to" TEXT NOT NULL, amount REAL NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending', type TEXT DEFAULT 'payment',
+      memo TEXT, tx_hash TEXT, block_number INTEGER,
+      approval_tier TEXT, approval_id TEXT,
+      ai_evaluation TEXT, metadata TEXT DEFAULT '{}',
+      created_at INTEGER DEFAULT (unixepoch() * 1000), confirmed_at INTEGER
+    );
+    CREATE TABLE IF NOT EXISTS agents (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, wallet_address TEXT NOT NULL,
+      status TEXT DEFAULT 'online', reputation INTEGER DEFAULT 80,
+      total_earned REAL DEFAULT 0, total_spent REAL DEFAULT 0,
+      completed_tasks INTEGER DEFAULT 0, response_time TEXT,
+      config TEXT DEFAULT '{}',
+      created_at INTEGER DEFAULT (unixepoch() * 1000),
+      updated_at INTEGER DEFAULT (unixepoch() * 1000)
+    );
+    CREATE TABLE IF NOT EXISTS services (
+      id TEXT PRIMARY KEY, name TEXT NOT NULL, description TEXT,
+      provider_agent_id TEXT, price_per_unit REAL NOT NULL,
+      unit_type TEXT NOT NULL, category TEXT DEFAULT 'utility',
+      rating REAL DEFAULT 4.5, reviews INTEGER DEFAULT 0,
+      active INTEGER DEFAULT 1,
+      created_at INTEGER DEFAULT (unixepoch() * 1000)
+    );
+    CREATE TABLE IF NOT EXISTS signals (
+      id TEXT PRIMARY KEY, source TEXT NOT NULL, trigger TEXT NOT NULL,
+      raw_data TEXT, processed INTEGER DEFAULT 0,
+      rule_id TEXT, payment_id TEXT,
+      created_at INTEGER DEFAULT (unixepoch() * 1000)
+    );
+    CREATE TABLE IF NOT EXISTS approvals (
+      id TEXT PRIMARY KEY, rule_id TEXT, payment_id TEXT,
+      tier TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'pending',
+      reason TEXT, reviewed_by TEXT, reviewed_at INTEGER,
+      expires_at INTEGER, created_at INTEGER DEFAULT (unixepoch() * 1000)
+    );
+    CREATE TABLE IF NOT EXISTS ai_evaluations (
+      id TEXT PRIMARY KEY, rule_id TEXT, signal_id TEXT,
+      type TEXT NOT NULL, context TEXT, approved INTEGER,
+      amount REAL, confidence INTEGER, severity TEXT,
+      reasoning TEXT, tokens_used INTEGER, response_time INTEGER,
+      created_at INTEGER DEFAULT (unixepoch() * 1000)
+    );
+    CREATE TABLE IF NOT EXISTS api_keys (
+      id TEXT PRIMARY KEY, key TEXT NOT NULL UNIQUE, role TEXT NOT NULL,
+      name TEXT, active INTEGER DEFAULT 1, last_used INTEGER,
+      created_at INTEGER DEFAULT (unixepoch() * 1000)
+    );
+  `);
+  console.log("🗄️ DB ready");
+
+  // Seed agents/services if empty
+  const agentCount = db.select({ c: sql`count(*)` }).from(schema.agents).get();
+  if (!agentCount?.c) {
+    await db.insert(schema.agents).values([
+      { id: "content-evaluator", name: "Content Evaluator Agent", walletAddress: "0x3695F3261cc7FB2e54106df524c12ce9FFd9a556", reputation: 95, totalEarned: 12400, completedTasks: 312, responseTime: "8s" },
+      { id: "translation-agent", name: "Translation Agent", walletAddress: "0x3695F3261cc7FB2e54106df524c12ce9FFd9a556", reputation: 88, totalEarned: 8900, completedTasks: 245, responseTime: "12s" },
+      { id: "security-auditor", name: "Security Auditor Agent", walletAddress: "0x3695F3261cc7FB2e54106df524c12ce9FFd9a556", reputation: 92, totalEarned: 15100, completedTasks: 187, responseTime: "5s" },
+    ]).run();
+    await db.insert(schema.services).values([
+      { id: "content-quality-check", name: "Content Quality Check", description: "AI evaluates content quality and originality", providerAgentId: "content-evaluator", pricePerUnit: 500, unitType: "request", category: "content", rating: 4.8, reviews: 156 },
+      { id: "text-translation", name: "Text Translation", description: "Translate between 50+ languages", providerAgentId: "translation-agent", pricePerUnit: 100, unitType: "token", category: "content", rating: 4.5, reviews: 89 },
+      { id: "security-scan", name: "Smart Contract Security Scan", description: "Automated vulnerability detection", providerAgentId: "security-auditor", pricePerUnit: 1500, unitType: "request", category: "security", rating: 4.9, reviews: 203 },
+      { id: "contract-audit", name: "Full Contract Audit", description: "Deep dive audit with report", providerAgentId: "security-auditor", pricePerUnit: 3000, unitType: "request", category: "security", rating: 4.7, reviews: 124 },
+    ]).run();
+    await db.insert(schema.apiKeys).values({
+      id: "admin-key", key: process.env.ARC_ADMIN_KEY || "ag_dccd6ba82f242f3957dff7320e965c085c2e0bf166a170b4",
+      role: "admin", name: "Default Admin", active: true,
+    }).onConflictDoNothing().run();
+    console.log("🌱 Database seeded");
+  }
+
   const agent = getAgent();
   await agent.start();
   Bun.serve({ port: PORT, fetch: app.fetch });
   console.log(`🤖 ArcGent API running on port ${PORT}`);
-  console.log(`🔐 Admin key: ${getAuth().getAdminKey()}`);
 }
 
 main().catch(console.error);
