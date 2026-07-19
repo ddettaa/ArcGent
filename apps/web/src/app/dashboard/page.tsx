@@ -54,6 +54,8 @@ export default function Dashboard() {
   const [newRule, setNewRule] = useState({ name: "", source: "github", trigger: "", amount: "", recipient: "" });
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   const fetchData = useCallback(async () => {
     try {
@@ -197,7 +199,7 @@ export default function Dashboard() {
           )}
           <div style={{ textAlign: "right" }}>
             <div style={{ fontSize: 18, fontWeight: 800, color: "white" }}>{status?.balance || "—"} USDC</div>
-            <div style={{ fontSize: 10, color: C.surf }}>Arc Testnet · {formatUptime(status?.uptime || 0)}</div>
+            <div style={{ fontSize: 10, color: C.steel }}>Arc Testnet · {mounted ? formatUptime(status?.uptime || 0) : "—"}</div>
           </div>
           {/* KILL / REVIVE */}
           {isKilled ? (
@@ -288,7 +290,7 @@ export default function Dashboard() {
                         {a.amount} USDC → {a.recipient?.slice(0, 6)}...{a.recipient?.slice(-4)} 
                         <span style={{ marginLeft: 8, padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 700, background: a.tier === "MANUAL" ? C.coral : C.gold, color: "white" }}>{a.tier}</span>
                       </div>
-                      <div style={{ fontSize: 10, color: C.steel }}>{a.memo} · {new Date(a.createdAt).toLocaleString()}</div>
+                      <div style={{ fontSize: 10, color: C.steel }}>{mounted ? new Date(a.createdAt).toLocaleString() : a.createdAt}</div>
                     </div>
                   </div>
                   <div style={{ display: "flex", gap: 8 }}>
@@ -400,7 +402,7 @@ export default function Dashboard() {
                       {sc.icon}
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 700 }}>{p.amount} USDC → {p.to?.slice(0, 6)}...{p.to?.slice(-4)}</div>
-                        <div style={{ fontSize: 10, color: C.steel }}>{new Date(p.timestamp).toLocaleString()}{p.approvalTier ? ` · ${p.approvalTier}` : ""}</div>
+                        <div style={{ fontSize: 10, color: C.steel }}>{mounted ? new Date(p.timestamp).toLocaleString() : p.timestamp}{p.approvalTier ? ` · ${p.approvalTier}` : ""}</div>
                       </div>
                     </div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -419,7 +421,7 @@ export default function Dashboard() {
         </div>
 
         <div style={{ fontSize: 10, color: C.steel, textAlign: "right", marginTop: 8 }}>
-          Auto-refresh every 15s · Last: {new Date(lastUpdate).toLocaleTimeString()}
+          Auto-refresh every 15s · Last: {mounted ? new Date(lastUpdate).toLocaleTimeString() : "—"}
         </div>
       </div>
 

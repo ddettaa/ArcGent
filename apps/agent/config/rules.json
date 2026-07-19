@@ -105,7 +105,7 @@
       "currency": "USDC",
       "memo": "Test send"
     },
-    "enabled": true,
+    "enabled": false,
     "cooldown": 0
   },
   {
@@ -123,7 +123,7 @@
       "currency": "USDC",
       "memo": "ArcGent test send"
     },
-    "enabled": true,
+    "enabled": false,
     "cooldown": 0
   }
 ]
