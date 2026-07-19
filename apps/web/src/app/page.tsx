@@ -27,10 +27,10 @@ export default function Landing() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#d8d5cc", fontFamily: "'DM Sans', system-ui, sans-serif", display: "flex", flexDirection: "column", alignItems: "center" }}>
+    <div style={{ minHeight: "100vh", background: "#d8d5cc", fontFamily: "'DM Sans', system-ui, sans-serif" }}>
       {/* FIDELITY FRAME */}
       <div style={{
-        width: "min(100%, 820px)", margin: "0 auto", overflow: "hidden",
+        width: "100%", minHeight: "100vh",
         background: C.sand,
         backgroundImage: "radial-gradient(rgba(11,26,51,0.08) 0.7px, transparent 0.7px)",
         backgroundSize: "16px 16px",
@@ -39,8 +39,8 @@ export default function Landing() {
         {/* NAV */}
         <header style={{
           position: "sticky", top: 0, zIndex: 50,
-          display: "grid", gridTemplateColumns: "1fr auto auto", alignItems: "center",
-          gap: 30, minHeight: 60, padding: "0 25px",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
+          gap: 30, minHeight: 60, padding: "0 5%",
           borderBottom: `1px solid ${C.border}`,
           background: scrolled ? "rgba(244,240,230,0.95)" : "transparent",
           backdropFilter: scrolled ? "blur(12px)" : "none",
@@ -61,7 +61,7 @@ export default function Landing() {
         </header>
 
         {/* HERO */}
-        <section style={{ position: "relative", minHeight: 515, padding: "11px 25px 0", overflow: "hidden" }}>
+        <section style={{ position: "relative", minHeight: "calc(100vh - 60px)", padding: "11px 5% 0", overflow: "hidden", display: "flex", alignItems: "center" }}>
           <h1 style={{
             position: "relative", zIndex: 3, width: 620, margin: 0,
             fontSize: 83, fontWeight: 900, letterSpacing: "-0.073em", lineHeight: 0.83,
@@ -94,7 +94,7 @@ export default function Landing() {
 
         {/* MANIFESTO */}
         <section style={{
-          position: "relative", minHeight: 276, padding: "22px 25px", overflow: "hidden",
+          position: "relative", minHeight: 276, padding: "22px 5%", overflow: "hidden",
           background: C.foam, borderTop: `1px solid ${C.borderL}`, borderBottom: `1px solid ${C.borderL}`,
         }}>
           <div style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>Our Thesis</div>
@@ -131,7 +131,7 @@ export default function Landing() {
         </section>
 
         {/* HOW IT WORKS */}
-        <section id="how-it-works" style={{ padding: "20px 25px 6px", background: "color-mix(in srgb, #f4f0e6 96%, white)" }}>
+        <section id="how-it-works" style={{ padding: "20px 5% 6px", background: "color-mix(in srgb, #f4f0e6 96%, white)" }}>
           <div style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>How ArcGent works</div>
           {[
             { n: "01", c: C.ocean, title: "Listen", desc: "Agent monitors verified signal sources — GitHub events, onchain oracles, flight data, Strava APIs, weather feeds — any structured event stream.", link: "Explore signals" },
@@ -164,7 +164,7 @@ export default function Landing() {
         </section>
 
         {/* USE CASES */}
-        <section id="use-cases" style={{ padding: "15px 25px 22px" }}>
+        <section id="use-cases" style={{ padding: "15px 5% 22px" }}>
           <div style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 8 }}>Use Cases</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 11, marginTop: 8 }}>
             {[
@@ -207,7 +207,7 @@ export default function Landing() {
         </section>
 
         {/* PROCESS */}
-        <section id="process" style={{ padding: "0 25px 20px" }}>
+        <section id="process" style={{ padding: "0 5% 20px" }}>
           <div style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 12 }}>Agent Lifecycle</div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)" }}>
             {[
@@ -232,7 +232,7 @@ export default function Landing() {
         <section style={{
           display: "grid", gridTemplateColumns: "1.05fr 0.95fr", minHeight: 260,
           overflow: "hidden", background: C.ocean, color: "white",
-          borderBlock: `1px solid ${C.borderS}`,
+          borderBlock: `1px solid ${C.borderS}`, padding: "0 5%",
         }}>
           <div style={{ padding: "28px 27px" }}>
             <div style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>Agent-First Economy</div>
@@ -263,7 +263,7 @@ export default function Landing() {
         </section>
 
         {/* NOTES */}
-        <section id="agent-log" style={{ padding: "18px 25px 22px" }}>
+        <section id="agent-log" style={{ padding: "18px 5% 22px" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ fontSize: 8, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase" }}>Agent Log</div>
             <Link href="/dashboard" style={{ color: C.ink, borderBottom: "1px solid currentColor", fontSize: 8, fontWeight: 900, letterSpacing: "0.06em", textTransform: "uppercase", textDecoration: "none" }}>View all ↗</Link>
@@ -298,7 +298,7 @@ export default function Landing() {
         {/* CLOSING */}
         <section style={{
           display: "grid", gridTemplateColumns: "1.1fr 0.62fr 110px", gap: 30,
-          alignItems: "center", minHeight: 190, padding: "26px 25px",
+          alignItems: "center", minHeight: 190, padding: "26px 5%",
           borderTop: `1px solid ${C.borderL}`,
         }}>
           <h2 style={{ margin: 0, fontSize: 53, lineHeight: 0.85, letterSpacing: "-0.06em" }}>What signal will <em style={{ fontFamily: "Georgia, serif", fontWeight: 400 }}>your agent</em> listen for?</h2>
@@ -317,7 +317,7 @@ export default function Landing() {
         {/* FOOTER */}
         <footer style={{
           display: "grid", gridTemplateColumns: "1.2fr 1fr 1fr 1fr 1.1fr", gap: 20,
-          alignItems: "start", padding: "17px 25px 21px",
+          alignItems: "start", padding: "17px 5% 21px",
           borderTop: `1px solid ${C.borderL}`, fontSize: 7, lineHeight: 1.55, color: C.steel,
         }}>
           <strong style={{ fontSize: 13, letterSpacing: "-0.04em", color: C.ink }}>ArcGent</strong>
