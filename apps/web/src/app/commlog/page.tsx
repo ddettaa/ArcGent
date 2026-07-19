@@ -28,8 +28,9 @@ export default function CommLogPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<"all" | "completed" | "failed">("all");
+  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => { fetchData(); const t = setInterval(fetchData, 15000); return () => clearInterval(t); }, []);
+  useEffect(() => { setMounted(true); fetchData(); const t = setInterval(fetchData, 15000); return () => clearInterval(t); }, []);
 
   const fetchData = async () => {
     try {
@@ -134,7 +135,7 @@ export default function CommLogPage() {
                       <span>{agentNames[p.toAgentId] || p.toAgentId || "external"}</span>
                     </div>
                     <div style={{ fontSize: 10, color: C.steel, marginTop: 2 }}>
-                      {p.service || "payment"} · <Clock size={9} style={{ display: "inline", verticalAlign: "-1px" }} /> {new Date(p.timestamp).toLocaleString()}
+                      {p.service || "payment"} · <Clock size={9} style={{ display: "inline", verticalAlign: "-1px" }} /> {mounted ? new Date(p.timestamp).toLocaleString() : p.timestamp}
                     </div>
                   </div>
                 </div>

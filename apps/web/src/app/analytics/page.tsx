@@ -56,11 +56,11 @@ export default function AnalyticsPage() {
   const [timeRange, setTimeRange] = useState("7d");
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [mounted, setMounted] = useState(false);
 
+  useEffect(() => { setMounted(true); fetchAnalytics(); }, [timeRange]);
   const totalPages = Math.max(Math.ceil(activity.length / ITEMS_PER_PAGE), 1);
   const pageActivity = activity.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
-
-  useEffect(() => { fetchAnalytics(); }, [timeRange]);
 
   const fetchAnalytics = async () => {
     try {
@@ -179,7 +179,7 @@ export default function AnalyticsPage() {
                       </div>
                     </div>
                     <div style={{ fontSize: 9, color: C.steel, textAlign: "center", fontWeight: 600 }}>
-                      {new Date(day.date).toLocaleDateString("en-US", { weekday: "short", day: "numeric" })}
+                      {mounted ? new Date(day.date).toLocaleDateString("en-US", { weekday: "short", day: "numeric" }) : day.date}
                     </div>
                   </div>
                 ))}
@@ -229,7 +229,7 @@ export default function AnalyticsPage() {
                   {tx.type === "earned" ? "+" : "-"}{fmt(tx.amount)} USDC
                 </div>
                 <div style={{ color: C.steel, whiteSpace: "nowrap" }}>
-                  {new Date(tx.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" })} {new Date(tx.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                  {mounted ? `${new Date(tx.timestamp).toLocaleDateString("en-US", { month: "short", day: "numeric" })} ${new Date(tx.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}` : tx.timestamp}
                 </div>
                 <div>
                   <span style={{ display: "inline-flex", alignItems: "center", gap: 3, padding: "3px 8px", borderRadius: 10, fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.04em", background: tx.type === "earned" ? "rgba(90,205,167,0.12)" : "rgba(255,75,49,0.12)", color: tx.type === "earned" ? C.mint : C.coral }}>
