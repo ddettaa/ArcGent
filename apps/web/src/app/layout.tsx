@@ -1,13 +1,9 @@
 import type { Metadata } from 'next';
 import './globals.css';
-import { Geist } from "next/font/google";
-import { cn } from "@/lib/utils";
-
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
-  title: 'ArcGent Dashboard',
-  description: 'Autonomous signal-to-payment agents on Arc + Circle',
+  title: 'ArcGent — Signal-to-Payment Agent',
+  description: 'Autonomous agent economy on Arc + Circle',
 };
 
 export default function RootLayout({
@@ -16,8 +12,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={cn("font-sans", geist.variable)}>
+    <html lang="en">
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link
           href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700;9..40,900&display=swap"
           rel="stylesheet"
