@@ -1,9 +1,19 @@
 // Circle Agent Stack wallet integration
-import { createPublicClient, http, createWalletClient, formatUnits, parseUnits } from 'viem';
-import { arcTestnet } from 'viem/chains';
+// Arc Testnet uses USDC as native gas token (6 decimals)
+import { createPublicClient, http, createWalletClient, parseUnits, defineChain } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
 import { Config } from '../utils/config.js';
 import { Logger } from '../utils/logger.js';
+
+const arcTestnet = defineChain({
+  id: 5042002,
+  name: 'Arc Testnet',
+  network: 'arc-testnet',
+  nativeCurrency: { decimals: 6, name: 'USD Coin', symbol: 'USDC' },
+  rpcUrls: { default: { http: ['https://rpc.testnet.arc.network'] }, public: { http: ['https://rpc.testnet.arc.network'] } },
+  blockExplorers: { default: { name: 'Arc Explorer', url: 'https://testnet.arcscan.app' } },
+  testnet: true,
+});
 
 const logger = new Logger('CircleWallet');
 
@@ -96,7 +106,7 @@ export class CircleWallet {
             // Arc USDC is native (18 decimals for gas) — use native transfer
             // For ERC-20 interface, use the USDC contract at 0x3600...
             
-            const amountWei = parseUnits(amount.toString(), 18);
+            const amountWei = parseUnits(amount.toString(), 6);  // USDC uses 6 decimals on Arc
             
             // Native transfer on Arc (USDC is native gas token)
             const hash = await this.walletClient.sendTransaction({

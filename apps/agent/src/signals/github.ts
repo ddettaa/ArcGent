@@ -1,168 +1,174 @@
-// GitHub signal listener
-// Monitors GitHub events: PR merged, issues closed, pushes, etc.
-import { Logger } from '../utils/logger.js';
+// GitHub Signal Listener — monitors PR merges, issues closed
+// EventEmitter pattern: emits "signal" with GitHubSignal payload
+// Also supports async check() for rule engine integration
 
-const logger = new Logger('GitHubSignal');
+export interface GitHubSignal {
+  id: string;
+  type: "pull_request.merged" | "issues.closed" | "push";
+  action: string;
+  repo: string;
+  title: string;
+  url: string;
+  labels: string[];
+  author: string;
+  timestamp: string;
+  raw: any;
+}
 
-export class GitHubSignal {
-    private token: string;
-    private baseUrl: string = 'https://api.github.com';
-    private registeredTriggers: Map<string, any> = new Map();
+export class GitHubListener {
+  private token: string;
+  private repos: string[];
+  private pollInterval: number;
+  private lastChecked: Map<string, string> = new Map();
+  private timer: NodeJS.Timeout | null = null;
+  private handlers: Map<string, (signal: GitHubSignal) => void> = new Map();
+  private signalQueue: GitHubSignal[] = [];
 
-    constructor() {
-        this.token = process.env.GITHUB_TOKEN || '';
+  constructor(token: string, repos: string[], pollIntervalMs = 30000) {
+    this.token = token;
+    this.repos = repos;
+    this.pollInterval = pollIntervalMs;
+  }
+
+  async start() {
+    console.log(`[GitHub] Listening to ${this.repos.length} repos every ${this.pollInterval}ms`);
+    this.timer = setInterval(() => this.poll(), this.pollInterval);
+    await this.poll(); // initial fetch
+  }
+
+  stop() {
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
     }
+  }
 
-    async register(trigger: string, conditions: any) {
-        this.registeredTriggers.set(trigger, conditions);
-        logger.info(`Registered GitHub trigger: ${trigger}`);
+  /** Check if a specific trigger/condition is met — used by rule engine */
+  async check(trigger: string, conditions: Record<string, any>): Promise<GitHubSignal | null> {
+    const now = Date.now();
+    // Look through recent signals (last 30s)
+    const cutoff = new Date(now - 30000).toISOString();
+    const match = this.signalQueue.find(s => {
+      if (s.type !== trigger) return false;
+      if (new Date(s.timestamp) < new Date(cutoff)) return false;
+      // Check all conditions
+      for (const [key, val] of Object.entries(conditions)) {
+        if (key === "label" && !s.labels.some(l => l.toLowerCase().includes(String(val).toLowerCase()))) return false;
+        if (key === "repo" && s.repo !== val) return false;
+        if (key === "author" && s.author !== val) return false;
+      }
+      return true;
+    });
+    return match || null;
+  }
+
+  /** Register interest in a specific trigger */
+  on(event: "signal", handler: (signal: GitHubSignal) => void): void {
+    const id = `handler_${this.handlers.size}`;
+    this.handlers.set(id, handler);
+  }
+
+  /** Get all recent signals (for API / dashboard) */
+  getRecentSignals(count = 50): GitHubSignal[] {
+    return this.signalQueue.slice(-count);
+  }
+
+  private async poll() {
+    for (const repo of this.repos) {
+      try {
+        await this.checkRepo(repo);
+      } catch (e) {
+        console.error(`[GitHub] Error checking ${repo}:`, e);
+      }
     }
+    // Clean queue — keep last 1000
+    if (this.signalQueue.length > 1000) {
+      this.signalQueue = this.signalQueue.slice(-500);
+    }
+  }
 
-    async check(trigger: string, conditions: any): Promise<any> {
-        switch (trigger) {
-            case 'pull_request.merged':
-                return await this.checkPRMerged(conditions);
-            case 'issue.closed':
-                return await this.checkIssueClosed(conditions);
-            case 'push':
-                return await this.checkPush(conditions);
-            default:
-                logger.warn(`Unknown trigger: ${trigger}`);
-                return null;
+  private async checkRepo(repo: string) {
+    const since = this.lastChecked.get(repo) || new Date(Date.now() - 3600000).toISOString();
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${this.token}`,
+      Accept: "application/vnd.github.v3+json",
+      "User-Agent": "ArcGent-Agent/1.0",
+    };
+
+    // Check PRs
+    try {
+      const prRes = await fetch(
+        `https://api.github.com/repos/${repo}/pulls?state=closed&sort=updated&per_page=10&direction=desc`,
+        { headers }
+      );
+      if (!prRes.ok) {
+        if (prRes.status === 403) console.error(`[GitHub] Rate limited on ${repo}`);
+        return;
+      }
+      const prs = await prRes.json();
+      if (!Array.isArray(prs)) return;
+
+      for (const pr of prs) {
+        if (pr.merged_at && new Date(pr.merged_at) > new Date(since)) {
+          const signal: GitHubSignal = {
+            id: `gh_pr_${pr.id}`,
+            type: "pull_request.merged",
+            action: "merged",
+            repo,
+            title: pr.title || "",
+            url: pr.html_url || "",
+            labels: (pr.labels || []).map((l: any) => l.name),
+            author: pr.user?.login || "",
+            timestamp: pr.merged_at,
+            raw: pr,
+          };
+          this.emit(signal);
         }
+      }
+    } catch (e) {
+      // Silently skip PR errors — not all repos have PRs
     }
 
-    private async checkPRMerged(conditions: any): Promise<any> {
-        try {
-            const repo = conditions.repo;
-            if (!repo) return null;
+    // Check issues
+    try {
+      const issueRes = await fetch(
+        `https://api.github.com/repos/${repo}/issues?state=closed&sort=updated&per_page=10&direction=desc`,
+        { headers }
+      );
+      if (!issueRes.ok) return;
+      const issues = await issueRes.json();
+      if (!Array.isArray(issues)) return;
 
-            const url = `${this.baseUrl}/repos/${repo}/pulls?state=closed&per_page=5`;
-            const headers: Record<string, string> = {
-                'Accept': 'application/vnd.github.v3+json',
-            };
-            if (this.token) {
-                headers['Authorization'] = `token ${this.token}`;
-            }
-
-            const response = await fetch(url, { headers });
-            if (!response.ok) return null;
-
-            const prs = await response.json();
-            
-            for (const pr of prs) {
-                // Check if PR was merged (not just closed)
-                if (pr.merged_at) {
-                    // Check conditions
-                    let match = true;
-                    
-                    if (conditions.label) {
-                        const labels = pr.labels.map((l: any) => l.name.toLowerCase());
-                        if (!labels.some((l: string) => l.includes(conditions.label.toLowerCase()))) {
-                            match = false;
-                        }
-                    }
-
-                    if (match) {
-                        logger.info(`Found merged PR: #${pr.number} — ${pr.title}`);
-                        return {
-                            pr: {
-                                number: pr.number,
-                                title: pr.title,
-                                merged_at: pr.merged_at,
-                                user: pr.user.login,
-                                labels: pr.labels.map((l: any) => l.name),
-                            },
-                        };
-                    }
-                }
-            }
-
-            return null;
-        } catch (error) {
-            logger.error('GitHub check failed:', error);
-            return null;
+      for (const issue of issues) {
+        if (issue.pull_request) continue; // skip PRs
+        if (new Date(issue.closed_at || "") > new Date(since)) {
+          const signal: GitHubSignal = {
+            id: `gh_issue_${issue.id}`,
+            type: "issues.closed",
+            action: "closed",
+            repo,
+            title: issue.title || "",
+            url: issue.html_url || "",
+            labels: (issue.labels || []).map((l: any) => l.name),
+            author: issue.user?.login || "",
+            timestamp: issue.closed_at || "",
+            raw: issue,
+          };
+          this.emit(signal);
         }
+      }
+    } catch (e) {
+      // Silently skip
     }
 
-    private async checkIssueClosed(conditions: any): Promise<any> {
-        // Similar to PR check but for issues
-        try {
-            const repo = conditions.repo;
-            if (!repo) return null;
+    this.lastChecked.set(repo, new Date().toISOString());
+  }
 
-            const url = `${this.baseUrl}/repos/${repo}/issues?state=closed&per_page=5`;
-            const headers: Record<string, string> = {
-                'Accept': 'application/vnd.github.v3+json',
-            };
-            if (this.token) {
-                headers['Authorization'] = `token ${this.token}`;
-            }
-
-            const response = await fetch(url, { headers });
-            if (!response.ok) return null;
-
-            const issues = await response.json();
-            
-            for (const issue of issues) {
-                if (!issue.pull_request) { // Real issue, not PR
-                    let match = true;
-                    
-                    if (conditions.label) {
-                        const labels = issue.labels.map((l: any) => l.name.toLowerCase());
-                        if (!labels.some((l: string) => l.includes(conditions.label.toLowerCase()))) {
-                            match = false;
-                        }
-                    }
-
-                    if (match) {
-                        return { issue };
-                    }
-                }
-            }
-
-            return null;
-        } catch (error) {
-            logger.error('GitHub issue check failed:', error);
-            return null;
-        }
+  private emit(signal: GitHubSignal) {
+    this.signalQueue.push(signal);
+    for (const handler of this.handlers.values()) {
+      try { handler(signal); } catch (e) {}
     }
-
-    private async checkPush(conditions: any): Promise<any> {
-        try {
-            const repo = conditions.repo;
-            const branch = conditions.branch || 'main';
-            if (!repo) return null;
-
-            const url = `${this.baseUrl}/repos/${repo}/commits?sha=${branch}&per_page=1`;
-            const headers: Record<string, string> = {
-                'Accept': 'application/vnd.github.v3+json',
-            };
-            if (this.token) {
-                headers['Authorization'] = `token ${this.token}`;
-            }
-
-            const response = await fetch(url, { headers });
-            if (!response.ok) return null;
-
-            const commits = await response.json();
-            
-            if (commits.length > 0) {
-                const latest = commits[0];
-                return {
-                    push: {
-                        sha: latest.sha,
-                        message: latest.commit.message,
-                        author: latest.commit.author.name,
-                        date: latest.commit.author.date,
-                    },
-                };
-            }
-
-            return null;
-        } catch (error) {
-            logger.error('GitHub push check failed:', error);
-            return null;
-        }
-    }
+    console.log(`[GitHub] 📡 ${signal.type} from ${signal.repo}: "${signal.title}" (labels: ${signal.labels.join(", ") || "none"})`);
+  }
 }

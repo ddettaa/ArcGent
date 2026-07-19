@@ -1,148 +1,67 @@
+// ArcGent Agent API Server
+// Hono-based REST API for dashboard integration
 import { Hono } from "hono";
 import { cors } from "hono/cors";
-import { serve } from "@hono/node-server";
-import { createPublicClient, http } from "viem";
-import { arc } from "./config.js";
+import { getAgent, type AgentRule } from "./agent.js";
 
 const app = new Hono();
+app.use("*", cors());
 
-// CORS for Next.js frontend
-app.use("*", cors({ origin: ["http://129.212.238.245:3000", "http://localhost:3000"] }));
-
-// Arc network client
-const publicClient = createPublicClient({
-  chain: arc,
-  transport: http(),
-});
-
-// Mock agent state
-let agentState = {
-  running: true,
-  rulesCount: 4,
-  balance: "865,034,306.42",
-  walletAddress: "0x742d35Cd6634C0532925a3b8D4C9db96C4b4d8b6",
-  lastSignalCheck: "2 min ago",
-  network: "Arc Testnet",
-  chainId: 5042002,
-  blockNumber: 0,
-  uptime: "0h 0m",
-  startTime: Date.now(),
-};
-
-// Load rules from config
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const rulesPath = path.join(__dirname, "../config/rules.json");
-
-let rules: any[] = [];
-try {
-  const raw = fs.readFileSync(rulesPath, "utf-8");
-  const parsed = JSON.parse(raw);
-  rules = Array.isArray(parsed) ? parsed : parsed.rules || [];
-} catch (e) {
-  rules = [
-    { id: "1", name: "Auto Bug Bounty", description: "Pay when PR with 'fix' label is merged", signal: { source: "github", trigger: "pull_request.merged", conditions: { label: "fix" } }, action: { type: "pay", recipient: "0x1234...5678", amount: 50, currency: "USDC" }, enabled: false, cooldown: 3600 },
-    { id: "2", name: "Flight Delay Refund", description: "Refund when flight delayed > 2 hours", signal: { source: "api", trigger: "flight.delayed", conditions: { delay_hours: 2 } }, action: { type: "refund", recipient: "0xabcd...ef12", amount: 100, currency: "USDC" }, enabled: false, cooldown: 86400 },
-    { id: "3", name: "Content Tip Stream", description: "Tip writer when content hits 1000 reads", signal: { source: "api", trigger: "page.views", conditions: { threshold: 1000 } }, action: { type: "tip", recipient: "0x9876...5432", amount: 5, currency: "USDC" }, enabled: false, cooldown: 604800 },
-  ];
-}
-
-// Payments log (mock)
-let payments: any[] = [];
-
-// Health check
-app.get("/health", (c) => c.json({ status: "ok", timestamp: new Date().toISOString() }));
-
-// Agent status
+// --- STATUS ---
 app.get("/api/status", async (c) => {
   try {
-    const blockNumber = await publicClient.getBlockNumber();
-    agentState.blockNumber = Number(blockNumber);
-    agentState.uptime = formatUptime(Date.now() - agentState.startTime);
+    const state = getAgent().getState();
+    const balance = await getAgent().getBalance() || "0.00";
+    return c.json({
+      status: state.status,
+      wallet: process.env.AGENT_ADDRESS || "0x0000000000000000000000000000000000000000",
+      balance: `${Number(balance).toLocaleString("en-US", { maximumFractionDigits: 6 })}`,
+      blockNumber: String(state.signalCheckCount),
+      signalChecks: state.signalCheckCount,
+      paymentsExecuted: state.paymentCount,
+      chain: "5042002",
+      uptime: `${Math.floor(state.uptime / 60)}m`,
+    });
   } catch (e) {
-    // fallback if RPC unreachable
+    return c.json({ status: "ERROR", error: String(e) }, 500);
   }
-  return c.json(agentState);
 });
 
-// Get rules
-app.get("/api/rules", (c) => c.json(rules));
+// --- RULES ---
+app.get("/api/rules", (c) => c.json(getAgent().getRules()));
 
-// Create rule
 app.post("/api/rules", async (c) => {
-  try {
-    const body = await c.req.json();
-    const newRule = { ...body, id: String(rules.length + 1), enabled: false };
-    rules.push(newRule);
-    agentState.rulesCount = rules.length;
-    // Persist to file
-    fs.writeFileSync(rulesPath, JSON.stringify(rules, null, 2));
-    return c.json(newRule, 201);
-  } catch (e) {
-    return c.json({ error: "Invalid rule" }, 400);
-  }
+  const body = await c.req.json<AgentRule>();
+  const rule = getAgent().addRule(body);
+  return c.json(rule, 201);
 });
 
-// Toggle rule
 app.patch("/api/rules/:id", async (c) => {
   const id = c.req.param("id");
-  const body = await c.req.json();
-  const rule = rules.find(r => r.id === id);
-  if (!rule) return c.json({ error: "Not found" }, 404);
-  Object.assign(rule, body);
-  fs.writeFileSync(rulesPath, JSON.stringify(rules, null, 2));
+  const body = await c.req.json<Partial<AgentRule>>();
+  const rule = getAgent().updateRule(id, body);
+  if (!rule) return c.json({ error: "Rule not found" }, 404);
   return c.json(rule);
 });
 
-// Get payments
-app.get("/api/payments", (c) => c.json(payments));
-
-// Execute payment (mock for now)
-app.post("/api/payments/execute", async (c) => {
-  const body = await c.req.json();
-  const payment = {
-    id: String(payments.length + 1),
-    txHash: `0x${Math.random().toString(16).slice(2)}${Math.random().toString(16).slice(2)}`,
-    rule: body.ruleName || "Manual",
-    recipient: body.recipient,
-    amount: body.amount,
-    status: "confirmed",
-    timestamp: new Date().toISOString(),
-  };
-  payments.push(payment);
-  return c.json(payment, 201);
+app.post("/api/rules/:id/toggle", (c) => {
+  const id = c.req.param("id");
+  const rule = getAgent().toggleRule(id);
+  if (!rule) return c.json({ error: "Rule not found" }, 404);
+  return c.json(rule);
 });
 
-// Signal feed (SSE)
-app.get("/api/signals/stream", (c) => {
-  return c.newResponse(new ReadableStream({
-    start(controller) {
-      const interval = setInterval(() => {
-        const signal = {
-          type: "signal",
-          source: ["github", "api", "oracle"][Math.floor(Math.random() * 3)],
-          timestamp: new Date().toISOString(),
-          data: { message: "Signal detected" },
-        };
-        controller.enqueue(`data: ${JSON.stringify(signal)}\n\n`);
-      }, 5000);
-      setTimeout(() => { clearInterval(interval); controller.close(); }, 300000);
-    },
-  }), {
-    headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
-  });
-});
+// --- PAYMENTS ---
+app.get("/api/payments", (c) => c.json(getAgent().getPayments()));
 
-function formatUptime(ms: number): string {
-  const h = Math.floor(ms / 3600000);
-  const m = Math.floor((ms % 3600000) / 60000);
-  return `${h}h ${m}m`;
-}
+// --- HEALTH ---
+app.get("/api/health", (c) => c.json({ ok: true, uptime: getAgent().getState().uptime }));
 
-const port = parseInt(process.env.AGENT_PORT || "3001");
-console.log(`🤖 ArcGent API running on port ${port}`);
+// --- START ---
+const PORT = 3001;
 
-serve({ fetch: app.fetch, port });
+const agent = getAgent();
+agent.start().then(() => {
+  Bun.serve({ port: PORT, fetch: app.fetch });
+  console.log(`🤖 ArcGent API running on port ${PORT}`);
+}).catch(console.error);

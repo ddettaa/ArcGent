@@ -30,7 +30,7 @@ export function createConfig(): Config {
     return {
         arcRpcUrl: process.env.ARC_RPC_URL || 'https://rpc.testnet.arc.network',
         arcChainId: parseInt(process.env.ARC_CHAIN_ID || '5042002'),
-        usdcContract: process.env.USDC_CONTRACT || '0x3600000000000000000000000000000000000000',
+        usdcContract: process.env.USDC_CONTRACT || '0x360000000000000000000000000000000000000002',
         circleApiKey: process.env.CIRCLE_API_KEY || '',
         circleEntitySecret: process.env.CIRCLE_ENTITY_SECRET || '',
         circleWalletId: process.env.CIRCLE_WALLET_ID || '',
