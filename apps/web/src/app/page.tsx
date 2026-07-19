@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 // Types
 interface Rule {
@@ -42,58 +42,49 @@ interface AgentStatus {
 }
 
 export default function Dashboard() {
-  const [rules, setRules] = useState<Rule[]>([]);
+  const defaultRules: Rule[] = [
+    {
+      id: "bug-bounty-1",
+      name: "Auto Bug Bounty",
+      description: "Pay when PR with 'fix' label is merged",
+      signal: { source: "github", trigger: "pull_request.merged", conditions: { label: "fix" } },
+      action: { type: "pay", recipient: "0x1234...5678", amount: 50, currency: "USDC" },
+      enabled: false,
+      cooldown: 3600,
+    },
+    {
+      id: "flight-delay-1",
+      name: "Flight Delay Refund",
+      description: "Refund when flight delayed > 2 hours",
+      signal: { source: "api", trigger: "flight.delayed", conditions: { delay_hours: 2 } },
+      action: { type: "refund", recipient: "0xabcd...ef12", amount: 100, currency: "USDC" },
+      enabled: false,
+      cooldown: 86400,
+    },
+    {
+      id: "tip-stream-1",
+      name: "Content Tip Stream",
+      description: "Tip writer when content hits 1000 reads",
+      signal: { source: "api", trigger: "page.views", conditions: { threshold: 1000 } },
+      action: { type: "tip", recipient: "0x9876...5432", amount: 5, currency: "USDC" },
+      enabled: false,
+      cooldown: 604800,
+    },
+  ];
+
+  const defaultStatus: AgentStatus = {
+    running: true,
+    rulesCount: 4,
+    balance: "865,034,306.42",
+    walletAddress: "0x742d...a3f8",
+    lastSignalCheck: "2 min ago",
+  };
+
+  const [rules, setRules] = useState<Rule[]>(defaultRules);
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [status, setStatus] = useState<AgentStatus>({
-    running: false,
-    rulesCount: 0,
-    balance: "0.00",
-    walletAddress: "",
-    lastSignalCheck: "—",
-  });
+  const [status] = useState<AgentStatus>(defaultStatus);
   const [activeTab, setActiveTab] = useState<"overview" | "rules" | "payments">("overview");
   const [showNewRule, setShowNewRule] = useState(false);
-
-  // Mock data — in production, fetch from agent API
-  useEffect(() => {
-    setRules([
-      {
-        id: "bug-bounty-1",
-        name: "Auto Bug Bounty",
-        description: "Pay when PR with 'fix' label is merged",
-        signal: { source: "github", trigger: "pull_request.merged", conditions: { label: "fix" } },
-        action: { type: "pay", recipient: "0x1234...5678", amount: 50, currency: "USDC" },
-        enabled: false,
-        cooldown: 3600,
-      },
-      {
-        id: "flight-delay-1",
-        name: "Flight Delay Refund",
-        description: "Refund when flight delayed > 2 hours",
-        signal: { source: "api", trigger: "flight.delayed", conditions: { delay_hours: 2 } },
-        action: { type: "refund", recipient: "0xabcd...ef12", amount: 100, currency: "USDC" },
-        enabled: false,
-        cooldown: 86400,
-      },
-      {
-        id: "tip-stream-1",
-        name: "Content Tip Stream",
-        description: "Tip writer when content hits 1000 reads",
-        signal: { source: "api", trigger: "page.views", conditions: { threshold: 1000 } },
-        action: { type: "tip", recipient: "0x9876...5432", amount: 5, currency: "USDC" },
-        enabled: false,
-        cooldown: 604800,
-      },
-    ]);
-
-    setStatus({
-      running: true,
-      rulesCount: 4,
-      balance: "865,034,306.42",
-      walletAddress: "0x742d...a3f8",
-      lastSignalCheck: "2 min ago",
-    });
-  }, []);
 
   const toggleRule = (id: string) => {
     setRules(rules.map(r => r.id === id ? { ...r, enabled: !r.enabled } : r));
