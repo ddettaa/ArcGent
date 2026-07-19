@@ -51,7 +51,7 @@ export class ArcGentAgent {
   private rules: AgentRule[] = [];
   private payments: PaymentRecord[] = [];
   private ruleEngine: RuleEngine;
-  private circleWallet!: CircleWallet;
+  public circleWallet!: CircleWallet;
   private githubListener!: GitHubListener;
   private apiSignal!: APISignal;
   private running = false;

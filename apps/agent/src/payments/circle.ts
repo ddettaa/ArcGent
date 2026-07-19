@@ -167,6 +167,31 @@ export class CircleWallet {
         }
     }
 
+    // Nanopayments — sub-cent USDC transfers (0.000001 to 0.01 USDC)
+    async sendNanopayment(to: string, microAmount: number, memo?: string): Promise<string> {
+        if (!this.initialized || !this.walletClient) {
+            throw new Error('Wallet not initialized');
+        }
+
+        // microAmount is in micro-USDC (0.000001 USDC = 1 micro-USDC)
+        if (microAmount < 1 || microAmount > 10000) {
+            throw new Error('Nanopayment amount must be between 1 and 10,000 micro-USDC (0.000001-0.01 USDC)');
+        }
+
+        const amountWei = BigInt(microAmount); // Already in 6-decimal format
+        
+        logger.info(`Sending nanopayment: ${microAmount} micro-USDC (${microAmount / 1000000} USDC) to ${to}...`);
+        
+        const hash = await this.walletClient.sendTransaction({
+            to: to as `0x${string}`,
+            value: amountWei,
+            data: memo ? `0x${Buffer.from(`nano:${memo}`, 'utf8').toString('hex')}` : `0x${Buffer.from('nanopayment', 'utf8').toString('hex')}`,
+        });
+
+        logger.info(`Nanopayment sent: ${hash}`);
+        return hash;
+    }
+
     // Circle Agent Stack methods (placeholder for API integration)
     async createWallet(): Promise<string> {
         // Circle Agent Stack — create developer-controlled wallet

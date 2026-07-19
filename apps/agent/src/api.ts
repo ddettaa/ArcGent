@@ -8,6 +8,9 @@ import { requireAdmin, requireOperator, requireViewer, extractKey, getAuth } fro
 import type { SignalContext } from "./ai/evaluator.js";
 import { getEvaluator } from "./ai/evaluator.js";
 import { TEMPLATES, instantiateTemplate } from "./rules/templates.js";
+import { getPaymaster } from "./payments/paymaster.js";
+import { getAgentPayments } from "./agents/payments.js";
+import { createConfig } from "./utils/config.js";
 
 const app = new Hono();
 app.use("/*", cors());
@@ -201,6 +204,114 @@ app.get("/api/auth/keys", (c) => {
   if (!requireAdmin(c.req.raw)) return c.json({ error: "Unauthorized" }, 403);
   const auth = getAuth();
   return c.json({ adminKey: auth.getAdminKey(), note: "Set ARC_ADMIN_KEY in .env to persist" });
+});
+
+// --- NANOPAYMENTS ---
+app.post("/api/nanopayments/send", async (c) => {
+  if (!requireOperator(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
+  const { to, microAmount, memo } = await c.req.json();
+  
+  if (!to || !microAmount) {
+    return c.json({ error: "Missing 'to' address or 'microAmount'" }, 400);
+  }
+
+  try {
+    const agent = getAgent();
+    const txHash = await agent.circleWallet.sendNanopayment(to, microAmount, memo);
+    return c.json({ 
+      success: true, 
+      txHash, 
+      microAmount, 
+      usdcAmount: microAmount / 1000000,
+      to, 
+      memo 
+    });
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// --- PAYMASTER ---
+app.get("/api/paymaster/policies", async (c) => {
+  if (!requireViewer(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
+  const config = createConfig();
+  const paymaster = getPaymaster(config);
+  const policies = await paymaster.getPolicies();
+  return c.json(policies);
+});
+
+app.post("/api/paymaster/sponsor", async (c) => {
+  if (!requireOperator(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
+  const request = await c.req.json();
+  const config = createConfig();
+  
+  try {
+    const paymaster = getPaymaster(config);
+    const result = await paymaster.sponsorTransaction(request);
+    return c.json(result);
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+app.get("/api/paymaster/stats", async (c) => {
+  if (!requireViewer(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
+  const config = createConfig();
+  const paymaster = getPaymaster(config);
+  const stats = await paymaster.getSponsorshipStats();
+  return c.json(stats);
+});
+
+// --- AGENT-TO-AGENT PAYMENTS ---
+app.get("/api/agents", async (c) => {
+  if (!requireViewer(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
+  const config = createConfig();
+  const agentPayments = getAgentPayments(config);
+  await agentPayments.initialize();
+  const agents = await agentPayments.getAgents();
+  return c.json(agents);
+});
+
+app.get("/api/agents/services", async (c) => {
+  if (!requireViewer(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
+  const config = createConfig();
+  const agentPayments = getAgentPayments(config);
+  await agentPayments.initialize();
+  const services = await agentPayments.getServices();
+  return c.json(services);
+});
+
+app.post("/api/agents/pay", async (c) => {
+  if (!requireOperator(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
+  const { fromAgentId, serviceId, units, metadata } = await c.req.json();
+  const config = createConfig();
+  
+  try {
+    const agentPayments = getAgentPayments(config);
+    await agentPayments.initialize();
+    const payment = await agentPayments.payForService(fromAgentId, serviceId, units, metadata);
+    return c.json(payment);
+  } catch (error: any) {
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+app.get("/api/agents/payments", async (c) => {
+  if (!requireViewer(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
+  const config = createConfig();
+  const agentPayments = getAgentPayments(config);
+  await agentPayments.initialize();
+  const payments = await agentPayments.getPayments();
+  return c.json(payments);
+});
+
+app.get("/api/agents/stats", async (c) => {
+  if (!requireViewer(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
+  const config = createConfig();
+  const agentPayments = getAgentPayments(config);
+  await agentPayments.initialize();
+  const stats = await agentPayments.getAgentStats();
+  return c.json(stats);
 });
 
 // --- AI EVALUATION ---
