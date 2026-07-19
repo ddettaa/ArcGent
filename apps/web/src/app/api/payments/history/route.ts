@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { agentGet } from "../../../_lib";
+import { agentGet } from "../../_lib";
 
 export async function GET() {
   try {

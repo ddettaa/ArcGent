@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { agentPost } from "../../../_lib";
+import { agentPost } from "../../_lib";
 
 export async function POST(req: Request) {
   try {
