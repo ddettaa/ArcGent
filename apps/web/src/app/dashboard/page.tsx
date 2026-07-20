@@ -68,10 +68,30 @@ export default function Dashboard() {
   const [paymentsPage, setPaymentsPage] = useState(1);
   const ITEMS_PER_PAGE = 5;
 
+  const [myAgent, setMyAgent] = useState<any>(null);
+  const [myAgentBalance, setMyAgentBalance] = useState<string | null>(null);
+
   // User's connected wallet
   const { address: userAddress, isConnected: userConnected } = useAccount();
   const { data: userBalance } = useBalance({ address: userAddress });
   useEffect(() => { setMounted(true); }, []);
+
+  // Fetch user's agent + balance
+  useEffect(() => {
+    if (!userAddress) return;
+    const wallet = userAddress;
+    fetch(`/api/my-agent?walletAddress=${wallet}`, { headers: { "X-Wallet-Address": wallet } })
+      .then(r => r.ok ? r.json() : null)
+      .then(agent => {
+        setMyAgent(agent);
+        if (agent?.walletAddress) {
+          fetch("/api/status", { headers: { "X-Wallet-Address": wallet } })
+            .then(r => r.ok ? r.json() : null)
+            .then(s => setMyAgentBalance(s?.balance || "0.00"));
+        }
+      })
+      .catch(() => setMyAgent(null));
+  }, [userAddress]);
 
   const fetchData = useCallback(async () => {
     try {
@@ -128,7 +148,10 @@ export default function Dashboard() {
   const killSwitch = async () => {
     setActionLoading("kill");
     try {
-      const res = await fetch("/api/kill", { method: "POST" });
+      const res = await fetch("/api/my-agent/kill", { 
+        method: "POST",
+        headers: userAddress ? { "X-Wallet-Address": userAddress } : {},
+      });
       if (res.ok) fetchData();
     } catch {}
     setActionLoading(null);
@@ -137,7 +160,10 @@ export default function Dashboard() {
   const revive = async () => {
     setActionLoading("revive");
     try {
-      const res = await fetch("/api/revive", { method: "POST" });
+      const res = await fetch("/api/my-agent/revive", { 
+        method: "POST",
+        headers: userAddress ? { "X-Wallet-Address": userAddress } : {},
+      });
       if (res.ok) fetchData();
     } catch {}
     setActionLoading(null);
@@ -260,8 +286,13 @@ export default function Dashboard() {
             <div style={{ width: 1, height: 30, background: "rgba(255,255,255,0.15)" }} />
             {/* Agent Wallet */}
             <div style={{ textAlign: "right" }}>
-              <div style={{ fontSize: 9, color: C.steel, textTransform: "uppercase", letterSpacing: "0.05em" }}>🤖 Agent</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: "white" }}>{status?.balance || "—"} USDC</div>
+              <div style={{ fontSize: 9, color: C.steel, textTransform: "uppercase", letterSpacing: "0.05em" }}>🤖 My Agent</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "white" }}>
+                {myAgentBalance !== null ? myAgentBalance : (status?.balance || "—")} USDC
+              </div>
+              {myAgent && (
+                <div style={{ fontSize: 9, color: C.steel }}>{myAgent.name}</div>
+              )}
               <div style={{ fontSize: 10, color: C.steel }}>Arc Testnet · {mounted ? formatUptime(status?.uptime || 0) : "—"}</div>
             </div>
           </div>

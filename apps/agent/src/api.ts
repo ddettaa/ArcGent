@@ -88,6 +88,30 @@ app.get("/api/my-agent", (c) => {
   return c.json(agent);
 });
 
+// Kill user's own agent (sets status to offline)
+app.post("/api/my-agent/kill", async (c) => {
+  if (!requireViewer(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
+  const owner = getOwner(c);
+  if (owner === "0x0") return c.json({ error: "Wallet required" }, 400);
+  const db = getDb();
+  const agent = db.select().from(schema.agents).where(eq(schema.agents.ownerAddress, owner)).get();
+  if (!agent) return c.json({ error: "No agent found" }, 404);
+  db.update(schema.agents).set({ status: "offline" }).where(eq(schema.agents.ownerAddress, owner)).run();
+  return c.json({ ...agent, status: "offline" });
+});
+
+// Revive user's own agent
+app.post("/api/my-agent/revive", async (c) => {
+  if (!requireViewer(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
+  const owner = getOwner(c);
+  if (owner === "0x0") return c.json({ error: "Wallet required" }, 400);
+  const db = getDb();
+  const agent = db.select().from(schema.agents).where(eq(schema.agents.ownerAddress, owner)).get();
+  if (!agent) return c.json({ error: "No agent found" }, 404);
+  db.update(schema.agents).set({ status: "online" }).where(eq(schema.agents.ownerAddress, owner)).run();
+  return c.json({ ...agent, status: "online" });
+});
+
 app.post("/api/risk/limits", async (c) => {
   if (!requireAdmin(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
   const agent = getAgent();
@@ -195,11 +219,28 @@ app.get("/api/templates", (c) => {
 app.post("/api/templates/:id/instantiate", async (c) => {
   if (!requireOperator(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
   const templateId = c.req.param("id");
+  const owner = getOwner(c);
   const formData = await c.req.json();
   try {
     const rule = instantiateTemplate(templateId, formData);
     const agent = getAgent();
     const created = agent.addRule(rule);
+    // Attach owner for multi-tenant filtering
+    if (owner !== "0x0" && created?.id) {
+      const db = getDb();
+      await db.insert(schema.rules).values({
+        id: created.id,
+        ownerAddress: owner,
+        name: created.name || "Template Rule",
+        signalSource: created.signal?.source || "webhook",
+        signalTrigger: created.signal?.trigger || "",
+        signalConditions: created.signal?.conditions || {},
+        actionType: created.action?.type || "pay",
+        actionRecipient: created.action?.recipient || "",
+        actionAmount: created.action?.amount || 0,
+        enabled: created.enabled !== false,
+      }).onConflictDoNothing().run();
+    }
     return c.json(created, 201);
   } catch (e: any) {
     return c.json({ error: e.message }, 400);
@@ -210,6 +251,7 @@ app.post("/api/templates/:id/instantiate", async (c) => {
 app.post("/api/rules", async (c) => {
   if (!requireOperator(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
   const agent = getAgent();
+  const owner = getOwner(c);
   const body = await c.req.json();
   const rule: AgentRule = {
     id: body.id || `rule_${Date.now()}`,
@@ -219,6 +261,25 @@ app.post("/api/rules", async (c) => {
     enabled: body.enabled ?? false,
     cooldown: body.cooldown,
   };
+  // Attach owner for multi-tenant filtering
+  if (owner !== "0x0") {
+    const db = getDb();
+    await db.insert(schema.rules).values({
+      id: rule.id,
+      ownerAddress: owner,
+      name: rule.name,
+      signalSource: rule.signal.source,
+      signalTrigger: rule.signal.trigger,
+      signalConditions: rule.signal.conditions || {},
+      actionType: rule.action.type,
+      actionRecipient: rule.action.recipient,
+      actionAmount: rule.action.amount,
+      actionCurrency: rule.action.currency || "USDC",
+      actionMemo: rule.action.memo || null,
+      enabled: rule.enabled,
+      cooldown: rule.cooldown || null,
+    }).onConflictDoNothing().run();
+  }
   const created = agent.addRule(rule);
   return c.json(created, 201);
 });

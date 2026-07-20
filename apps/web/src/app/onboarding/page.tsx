@@ -8,6 +8,7 @@ import { CheckCircle, ArrowRight, Wallet, Settings, Zap } from "lucide-react";
 const C = {
   sand: "#f4f0e6", ink: "#0b1a33", ocean: "#1b3158",
   steel: "#2f578c", coral: "#ff4b31", mint: "#5acda7", purple: "#9f72ff",
+  gold: "#f2a43a",
 };
 
 interface OnboardingStep {
@@ -322,6 +323,17 @@ export default function OnboardingPage() {
             <p style={{ margin: "0 0 24px", fontSize: 14, color: C.steel }}>
               Your AI agent is now monitoring signals and ready to make payments automatically.
             </p>
+            {/* Fund Warning */}
+            <div style={{ padding: 16, background: "rgba(242,164,58,0.1)", borderRadius: 8, marginBottom: 24, textAlign: "left" }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: C.gold, marginBottom: 8 }}>⚠️ Agent Needs USDC</div>
+              <div style={{ fontSize: 12, color: C.steel, lineHeight: 1.5 }}>
+                Your agent has 0 USDC. It cannot make payments until you fund it. 
+                Send USDC on Arc Testnet to your agent wallet: 
+                <code style={{ display: "block", marginTop: 8, padding: 8, background: "rgba(11,26,51,0.05)", borderRadius: 4, fontSize: 11, wordBreak: "break-all" }}>
+                  {myAgent?.walletAddress || "loading..."}
+                </code>
+              </div>
+            </div>
             <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
               <a
                 href="/dashboard"
