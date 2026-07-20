@@ -37,12 +37,20 @@ export default function Landing() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const agentsR = await fetch("/api/agents/stats").then(r => r.json());
-        setLiveStats({
-          agents: agentsR.totalAgents || 3,
-          payments: agentsR.totalPayments || agentsR.totalEarned || 5,
-        });
-      } catch {}
+        const res = await fetch("/api/agents/stats");
+        const data = await res.json();
+        if (res.ok) {
+          setLiveStats({
+            agents: data.totalAgents || 3,
+            payments: data.totalPayments || data.totalEarned || 5,
+          });
+        } else {
+          // Fallback if stats endpoint fails
+          setLiveStats({ agents: 3, payments: 5 });
+        }
+      } catch {
+        setLiveStats({ agents: 3, payments: 5 });
+      }
     };
     fetchStats();
   }, []);
