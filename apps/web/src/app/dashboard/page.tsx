@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useAccount, useBalance } from 'wagmi';
 import { NotificationToasts } from "@/components/Notifications";
-import NavBar from "@/components/NavBar";
 import { SkeletonCard, SkeletonTable } from "@/components/Skeleton";
 import { 
   Bot, Radio, Brain, Zap, CheckCircle, CreditCard, 
@@ -283,7 +282,6 @@ export default function Dashboard() {
 
   return (
     <div style={{ minHeight: "100vh", background: C.sand, fontFamily: "'DM Sans', sans-serif", color: C.ink }} suppressHydrationWarning>
-      <NavBar ctaLabel="Get Started" ctaHref="/onboarding" />
       <NotificationToasts />
       {/* HEADER */}
       <header style={{
