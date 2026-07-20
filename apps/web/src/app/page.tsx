@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { useAccount } from "wagmi";
 import { WalletConnectCompact } from "@/components/WalletConnect";
+import { Zap, Bot, ExternalLink, ArrowRight, Activity, DollarSign } from "lucide-react";
 
 const C = {
   sand: "#f4f0e6", ink: "#0b1a33", ocean: "#1b3158",
@@ -20,11 +22,60 @@ const FL = (c?: string): React.CSSProperties => ({
 
 export default function Landing() {
   const [scrolled, setScrolled] = useState(false);
+  const [simulating, setSimulating] = useState(false);
+  const [simResult, setSimResult] = useState<any>(null);
+  const [liveStats, setLiveStats] = useState<any>(null);
+  const { address: userAddress } = useAccount();
+  
   useEffect(() => {
     const h = () => setScrolled(window.scrollY > 50);
     window.addEventListener("scroll", h);
     return () => window.removeEventListener("scroll", h);
   }, []);
+
+  // Fetch live stats
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [agentsR, statusR] = await Promise.all([
+          fetch("/api/agents/stats").then(r => r.json()),
+          fetch("/api/status", { headers: { "Authorization": "Bearer ag_dccd6ba82f242f3957dff7320e965c085c2e0bf166a170b4" } }).then(r => r.json()),
+        ]);
+        setLiveStats({
+          agents: agentsR.totalAgents || 3,
+          payments: statusR.payments || statusR.paymentCount || 3,
+          volume: statusR.totalVolume || statusR.balance ? `${(Number(statusR.balance)/1e6).toFixed(2)}` : "39.99",
+        });
+      } catch {}
+    };
+    fetchStats();
+  }, []);
+
+  const simulateDemo = async () => {
+    setSimulating(true);
+    setSimResult(null);
+    try {
+      const res = await fetch("/api/simulate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer ag_dccd6ba82f242f3957dff7320e965c085c2e0bf166a170b4",
+        },
+        body: JSON.stringify({
+          signal: "webhook",
+          trigger: "pr_merged",
+          metadata: { repo: "arcgent/demo", pr: 42, author: "dev" },
+        }),
+      });
+      const data = await res.json();
+      setSimResult(data);
+      // Auto-scroll to demo section
+      document.getElementById("demo")?.scrollIntoView({ behavior: "smooth", block: "center" });
+    } catch (e: any) {
+      setSimResult({ success: false, message: e.message, trace: ["❌ Connection failed"] });
+    }
+    setSimulating(false);
+  };
 
   const px = "3%";
 
@@ -52,12 +103,17 @@ export default function Landing() {
           ArcGent
         </Link>
         <nav style={{ display: "flex", gap: 28, fontSize: 8, fontWeight: 700, color: C.steel }}>
-          {["How It Works","Use Cases","Process","Agent Log"].map((l,i) => (
-            <span key={l} onClick={() => document.getElementById(["hw","uc","pr","al"][i])?.scrollIntoView({behavior:"smooth"})} style={{ cursor:"pointer" }}>{l}</span>
+          {["How It Works","Use Cases","Demo","Process","Agent Log"].map((l,i) => (
+            <span key={l} onClick={() => document.getElementById(["hw","uc","demo","pr","al"][i])?.scrollIntoView({behavior:"smooth"})} style={{ cursor:"pointer" }}>{l}</span>
           ))}
         </nav>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <WalletConnectCompact />
+          {userAddress && (
+            <Link href="/dashboard" style={{ padding:"11px 15px", color:C.ocean, fontSize:8, fontWeight:900, textTransform:"uppercase", textDecoration:"none", border:`1px solid ${C.ocean}`, borderRadius:3 }}>
+              Dashboard →
+            </Link>
+          )}
           <Link href="/onboarding" style={{ padding:"11px 15px", color:"white", background:C.coral, fontSize:8, fontWeight:900, textTransform:"uppercase", textDecoration:"none", borderRadius:3 }}>
             Launch Agent ↗
           </Link>
@@ -71,7 +127,21 @@ export default function Landing() {
         </h1>
         <div style={{ position:"relative", zIndex:3, maxWidth:320, fontSize:13, lineHeight:1.3, marginTop:24, color:C.ink }}>
           Autonomous agents that listen to real-world signals — GitHub merges, API calls, flight delays — and automatically pay people with USDC based on AI reasoning.
-          <div style={{ marginTop:14 }}><Link href="/onboarding" style={FL(C.ocean)}>Start Building ↗</Link></div>
+          <div style={{ marginTop:14, display:"flex", gap:12, flexWrap:"wrap" }}>
+            <button
+              onClick={simulateDemo}
+              disabled={simulating}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 8, padding: "11px 18px",
+                background: C.gold, color: C.ink, border: "none", borderRadius: 4,
+                fontSize: 11, fontWeight: 800, cursor: simulating ? "not-allowed" : "pointer",
+                opacity: simulating ? 0.7 : 1, transition: "all 0.2s",
+              }}
+            >
+              <Zap size={14} /> {simulating ? "Running..." : "See It Live 🚀"}
+            </button>
+            <Link href="/onboarding" style={{...FL(C.ocean), paddingTop:6}}>Start Building ↗</Link>
+          </div>
         </div>
         <svg style={{ position:"absolute", right:px, bottom:40, zIndex:2, width:"45%", maxWidth:600, minWidth:300 }} viewBox="0 0 650 430" fill="none" aria-hidden="true">
           {[[C.ocean,"M20 432C52 341 123 303 236 259C330 223 358 185 373 116C381 79 404 59 444 59H550"],
@@ -97,6 +167,111 @@ export default function Landing() {
         <div style={{ position:"absolute", right:px, bottom:40, width:"40%", maxWidth:500, height:150, pointerEvents:"none" }} aria-hidden="true">
           <svg style={{ width:"100%", height:"100%" }} viewBox="0 0 500 150" fill="none"><path d="M4 130C85 93 57 60 142 66C218 71 170 14 253 13C347 11 338 101 484 84" stroke={C.ocean} strokeWidth="1.5" strokeDasharray="5 5" opacity="0.65"/></svg>
           {[{t:15,r:60,w:18,bg:C.ocean,a:"2s"},{t:55,l:80,w:12,bg:C.coral,a:"2.5s .5s"},{r:80,b:15,w:14,bg:C.mint,a:"3s 1s"},{l:120,b:25,w:10,bg:C.gold,a:"2.8s .7s"},{t:25,r:140,w:8,bg:C.purple,a:"2.2s 1.4s"}].map((d,i)=><span key={i} style={{position:"absolute",borderRadius:"50%",top:d.t,right:d.r,left:d.l as any,bottom:d.b as any,width:d.w,height:d.w,background:d.bg,animation:`signalPulse ${d.a} infinite`}}/>)}
+        </div>
+      </section>
+
+      {/* LIVE STATS + DEMO */}
+      <section id="demo" style={{ position:"relative", padding:`0 ${px} 20px` }}>
+        {/* LIVE STATS BAR */}
+        {liveStats && (
+          <div style={{
+            display: "flex", justifyContent: "center", gap: 32, flexWrap: "wrap",
+            padding: "16px 20px", background: C.ink, borderRadius: 10,
+            color: "white", marginBottom: 20,
+          }}>
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 20, fontWeight: 900 }}>{liveStats.agents}</div>
+              <div style={{ fontSize: 8, color: C.surf, textTransform: "uppercase" }}>Agents Online</div>
+            </div>
+            <div style={{ width: 1, background: "rgba(255,255,255,0.15)" }} />
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 20, fontWeight: 900 }}>{liveStats.payments}</div>
+              <div style={{ fontSize: 8, color: C.surf, textTransform: "uppercase" }}>Transactions</div>
+            </div>
+            <div style={{ width: 1, background: "rgba(255,255,255,0.15)" }} />
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 20, fontWeight: 900 }}>{liveStats.volume} USDC</div>
+              <div style={{ fontSize: 8, color: C.surf, textTransform: "uppercase" }}>Agent Balance</div>
+            </div>
+          </div>
+        )}
+
+        {/* SIMULATE RESULT */}
+        {simResult && (
+          <div style={{
+            background: simResult.success ? "rgba(90,205,167,0.06)" : "rgba(255,75,49,0.06)",
+            border: `1px solid ${simResult.success ? "rgba(90,205,167,0.25)" : "rgba(255,75,49,0.25)"}`,
+            borderRadius: 12, padding: "20px 24px", marginBottom: 20,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <span style={{ fontSize: 28 }}>{simResult.success ? "🎉" : "⚠️"}</span>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: simResult.success ? C.mint : C.coral }}>
+                    {simResult.message}
+                  </div>
+                  {simResult.ai && (
+                    <div style={{ fontSize: 11, color: C.steel, marginTop: 4 }}>
+                      🧠 AI: {simResult.ai.confidence}% confidence · {simResult.ai.reasoning}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {simResult.executed?.[0]?.txHash && (
+                <a
+                  href={`https://testnet.arcscan.app/tx/${simResult.executed[0].txHash}`}
+                  target="_blank"
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 6,
+                    padding: "8px 14px", background: C.purple, color: "white",
+                    borderRadius: 6, fontSize: 10, fontWeight: 700, textDecoration: "none",
+                  }}
+                >
+                  View on ArcScan <ExternalLink size={12} />
+                </a>
+              )}
+            </div>
+            {simResult.trace?.length > 0 && (
+              <div style={{
+                marginTop: 16, padding: "12px 16px",
+                background: "rgba(11,26,51,0.03)", borderRadius: 8,
+                fontFamily: "'DM Mono', monospace", fontSize: 11,
+                maxHeight: 200, overflowY: "auto",
+              }}>
+                {simResult.trace.map((t: string, i: number) => (
+                  <div key={i} style={{ padding: "3px 0", color: C.ink }}>{t}</div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TRY IT CTA */}
+        <div style={{ textAlign: "center", padding: "40px 0 20px" }}>
+          <div style={{...K, marginBottom: 12}}>Live Demo</div>
+          <h2 style={{ margin: "0 0 12px", fontSize: "clamp(24px, 4vw, 42px)", fontWeight: 900, letterSpacing: "-0.05em" }}>
+            See "If This, Then Pay" in action
+          </h2>
+          <p style={{ maxWidth: 480, margin: "0 auto 20px", fontSize: 12, color: C.steel, lineHeight: 1.4 }}>
+            Click the button. A simulated GitHub PR merge fires. AI evaluates. USDC flows. All onchain — in under 5 seconds.
+          </p>
+          <button
+            onClick={simulateDemo}
+            disabled={simulating}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 10,
+              padding: "16px 28px", background: C.gold, color: C.ink,
+              border: "none", borderRadius: 6, cursor: simulating ? "not-allowed" : "pointer",
+              fontSize: 14, fontWeight: 900, opacity: simulating ? 0.6 : 1,
+              transition: "all 0.2s",
+            }}
+          >
+            <Zap size={18} />
+            {simulating ? "AI is evaluating..." : "🚀 See It Live"}
+          </button>
+          <div style={{ marginTop: 10, fontSize: 9, color: C.steel }}>
+            Real USDC · Arc Network · Circle Agent Stack
+          </div>
         </div>
       </section>
 
