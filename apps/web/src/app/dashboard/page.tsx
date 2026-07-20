@@ -28,8 +28,14 @@ interface AgentStatus {
 interface AgentRule {
   id: string;
   name: string;
-  signal: { source: string; trigger: string; conditions: Record<string,any> };
-  action: { type: string; recipient: string; amount: number; currency?: string; memo?: string };
+  signalSource: string;
+  signalTrigger: string;
+  signalConditions: Record<string,any>;
+  actionType: string;
+  actionRecipient: string;
+  actionAmount: number;
+  actionCurrency?: string;
+  actionMemo?: string;
   enabled: boolean;
   cooldown?: number;
 }
@@ -98,8 +104,12 @@ export default function Dashboard() {
     const rule = {
       id: `rule_${Date.now()}`,
       name: newRule.name,
-      signal: { source: newRule.source as any, trigger: newRule.trigger, conditions: {} },
-      action: { type: "pay" as const, recipient: newRule.recipient, amount: parseFloat(newRule.amount), currency: "USDC", memo: newRule.name },
+      signalSource: newRule.source as any,
+      signalTrigger: newRule.trigger,
+      signalConditions: {},
+      actionType: "pay",
+      actionRecipient: newRule.recipient,
+      actionAmount: parseFloat(newRule.amount),
       enabled: true, cooldown: 3600,
     };
     try {

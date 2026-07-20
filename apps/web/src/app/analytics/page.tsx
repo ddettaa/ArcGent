@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Link from "next/link";
 import NavBar from "@/components/NavBar";
 import {
   BarChart3, Activity, DollarSign, Zap, Bot,

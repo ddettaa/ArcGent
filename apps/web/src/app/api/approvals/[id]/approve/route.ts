@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { agentPost } from "../../../_lib";
 
-export async function POST(req: Request, { params }: { params: { id: string } }) {
+export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const res = await agentPost(`/api/approvals/${params.id}/approve`);
+    const { id } = await params;
+    const res = await agentPost(`/api/approvals/${id}/approve`);
     if (!res.ok) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(await res.json());
   } catch {

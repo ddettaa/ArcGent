@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { WalletConnectCompact } from "./WalletConnect";
 import { Bot } from "lucide-react";
 
 const C = {
@@ -115,7 +114,7 @@ export default function NavBar({
 
       {/* Right side: Wallet + CTA */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-        {showWallet && <WalletConnectCompact />}
+        {showWallet && <span style={{ padding: "6px 12px", borderRadius: 8, fontSize: 11, fontWeight: 700, background: C.ocean, color: "white" }}>🔌 Wallet</span>}
         {ctaClick ? (
           <button onClick={ctaClick} style={{
             padding: "10px 16px", color: "white",
@@ -144,10 +143,4 @@ export default function NavBar({
       </div>
     </header>
   );
-}
-
-/** Compact wallet button variant — dark-mode friendly */
-export function WalletConnectCompact() {
-  // Re-export the compact wallet button from WalletConnect if available
-  return null; // placeholder — main WalletConnect handles this
 }

@@ -51,7 +51,7 @@ export function WalletConnect() {
         
         {balance && (
           <div style={{ fontSize: 10, color: C.steel }}>
-            {parseFloat(balance.formatted).toFixed(2)} {balance.symbol}
+            {balance ? (Number(balance.value) / 10 ** balance.decimals).toFixed(2) : "0.00"} {balance.symbol}
           </div>
         )}
         

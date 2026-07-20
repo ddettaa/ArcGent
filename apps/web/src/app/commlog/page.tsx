@@ -135,7 +135,7 @@ export default function CommLogPage() {
                       <span>{agentNames[p.toAgentId] || p.toAgentId || "external"}</span>
                     </div>
                     <div style={{ fontSize: 10, color: C.steel, marginTop: 2 }}>
-                      {p.service || "payment"} · <Clock size={9} style={{ display: "inline", verticalAlign: "-1px" }} /> {mounted ? new Date(p.timestamp).toLocaleString() : p.timestamp}
+                      {p.serviceId || "payment"} · <Clock size={9} style={{ display: "inline", verticalAlign: "-1px" }} /> {mounted ? new Date(p.timestamp).toLocaleString() : p.timestamp}
                     </div>
                   </div>
                 </div>
