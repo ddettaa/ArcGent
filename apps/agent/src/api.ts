@@ -493,6 +493,44 @@ app.get("/api/auth/keys", (c) => {
   return c.json({ adminKey: auth.getAdminKey(), note: "Set ARC_ADMIN_KEY in .env to persist" });
 });
 
+// --- REPUTATION / REVIEWS ---
+app.post("/api/agents/:id/review", async (c) => {
+  if (!requireViewer(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
+  const agentId = c.req.param("id");
+  const body = await c.req.json<any>();
+  if (!body.rating || body.rating < 1 || body.rating > 5) {
+    return c.json({ error: "rating must be 1-5" }, 400);
+  }
+  const db = getDb();
+  const review = {
+    id: `rev_${Date.now()}_${Math.random().toString(36).slice(2,6)}`,
+    agentId,
+    reviewer: body.reviewer || "anonymous",
+    rating: body.rating,
+    comment: body.comment || null,
+    txHash: body.txHash || null,
+    createdAt: new Date(),
+  };
+  db.insert(schema.reviews).values(review).run();
+  
+  // Recalculate reputation
+  const allReviews = db.select().from(schema.reviews).where(eq(schema.reviews.agentId, agentId)).all();
+  const avg = allReviews.reduce((s: number, r: any) => s + r.rating, 0) / allReviews.length;
+  const reputation = Math.round(avg * 20);
+  db.update(schema.agents).set({ reputation }).where(eq(schema.agents.id, agentId)).run();
+  
+  return c.json({ ...review, updatedReputation: reputation }, 201);
+});
+
+app.get("/api/agents/:id/reviews", (c) => {
+  if (!requireViewer(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
+  const agentId = c.req.param("id");
+  const db = getDb();
+  const all = db.select().from(schema.reviews).where(eq(schema.reviews.agentId, agentId)).all();
+  const reputation = all.length ? Math.round(all.reduce((s: number, r: any) => s + r.rating, 0) / all.length * 20) : 80;
+  return c.json({ reviews: all, reputation, total: all.length });
+});
+
 // --- NANOPAYMENTS ---
 app.post("/api/nanopayments/send", async (c) => {
   if (!requireOperator(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
@@ -712,6 +750,11 @@ async function main() {
     CREATE TABLE IF NOT EXISTS api_keys (
       id TEXT PRIMARY KEY, key TEXT NOT NULL UNIQUE, role TEXT NOT NULL,
       name TEXT, active INTEGER DEFAULT 1, last_used INTEGER,
+      created_at INTEGER DEFAULT (unixepoch() * 1000)
+    );
+    CREATE TABLE IF NOT EXISTS reviews (
+      id TEXT PRIMARY KEY, agent_id TEXT NOT NULL, reviewer TEXT NOT NULL,
+      rating INTEGER NOT NULL, comment TEXT, tx_hash TEXT,
       created_at INTEGER DEFAULT (unixepoch() * 1000)
     );
   `);

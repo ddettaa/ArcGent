@@ -102,7 +102,7 @@ export default function Landing() {
           <span style={{ display: "grid", placeItems: "center", width: 33, height: 33, color: "white", background: C.ocean, fontSize: 11, letterSpacing: "-0.08em", borderRadius: 4 }}>AG</span>
           ArcGent
         </Link>
-        <nav style={{ display: "flex", gap: 28, fontSize: 8, fontWeight: 700, color: C.steel }}>
+        <nav className="nav-links" style={{ display: "flex", gap: 28, fontSize: 8, fontWeight: 700, color: C.steel }}>
           {["How It Works","Use Cases","Demo","Process","Agent Log"].map((l,i) => (
             <span key={l} onClick={() => document.getElementById(["hw","uc","demo","pr","al"][i])?.scrollIntoView({behavior:"smooth"})} style={{ cursor:"pointer" }}>{l}</span>
           ))}
@@ -122,12 +122,12 @@ export default function Landing() {
 
       {/* HERO — full viewport */}
       <section style={{ position:"relative", minHeight:"calc(100vh - 60px)", padding:`120px ${px} 60px`, overflow:"hidden", display:"flex", flexDirection:"column", justifyContent:"center" }}>
-        <h1 style={{ position:"relative", zIndex:3, maxWidth:800, margin:0, fontSize:"clamp(42px, 7vw, 96px)", fontWeight:900, letterSpacing:"-0.07em", lineHeight:0.83 }}>
+        <h1 className="hero-title" style={{ position:"relative", zIndex:3, maxWidth:800, margin:0, fontSize:"clamp(42px, 7vw, 96px)", fontWeight:900, letterSpacing:"-0.07em", lineHeight:0.83 }}>
           When signals fire,<br/>AI pays.
         </h1>
         <div style={{ position:"relative", zIndex:3, maxWidth:320, fontSize:13, lineHeight:1.3, marginTop:24, color:C.ink }}>
           Autonomous agents that listen to real-world signals — GitHub merges, API calls, flight delays — and automatically pay people with USDC based on AI reasoning.
-          <div style={{ marginTop:14, display:"flex", gap:12, flexWrap:"wrap" }}>
+          <div className="hero-cta" style={{ marginTop:14, display:"flex", gap:12, flexWrap:"wrap" }}>
             <button
               onClick={simulateDemo}
               disabled={simulating}
@@ -154,7 +154,7 @@ export default function Landing() {
       </section>
 
       {/* MANIFESTO — full width foam */}
-      <section style={{ position:"relative", padding:`60px ${px}`, background:C.foam, borderTop:"1px solid rgba(11,26,51,0.15)", borderBottom:"1px solid rgba(11,26,51,0.15)" }}>
+      <section className="manifesto-grid" style={{ position:"relative", padding:`60px ${px}`, background:C.foam, borderTop:"1px solid rgba(11,26,51,0.15)", borderBottom:"1px solid rgba(11,26,51,0.15)" }}>
         <div style={K}>Our Thesis</div>
         <h2 style={{ maxWidth:900, margin:"16px 0 28px", fontSize:"clamp(32px, 5vw, 56px)", lineHeight:0.86, letterSpacing:"-0.055em" }}>
           Agents don't need permission to <em style={{ fontFamily:"Georgia, serif", fontWeight:400, fontStyle:"italic" }}>transact.</em>
@@ -308,7 +308,7 @@ export default function Landing() {
       {/* USE CASES */}
       <section id="uc" style={{ padding:`40px ${px} 30px` }}>
         <div style={{...K, marginBottom:12}}>Use Cases</div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))", gap:16 }}>
+        <div className="usecase-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(240px, 1fr))", gap:16 }}>
           {[
             { t:"Bug Bounty", d:"Auto-pay developers when their PR with \"fix:\" label gets merged. AI evaluates severity: critical → 600 USDC, typo → 5 USDC.", bg:"rgba(244,240,230,0.86)", cl:C.ocean, art:"wave" },
             { t:"Refund AI", d:"Flight delayed > 2 hours? API ping triggers instant USDC refund to traveler's wallet.", bg:C.coral, cl:"white", art:"node" },
@@ -334,7 +334,7 @@ export default function Landing() {
       {/* PROCESS */}
       <section id="pr" style={{ padding:`0 ${px} 40px` }}>
         <div style={{...K, marginBottom:16}}>Agent Lifecycle</div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))", gap:0 }}>
+        <div className="process-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(200px, 1fr))", gap:0 }}>
           {[
             { t:"Connect", d:"Wire your signal source via API, webhook, or oracle feed.", c:C.ocean },
             { t:"Configure", d:"Pick a template and set payment parameters. AI handles the rest.", c:C.coral },
@@ -352,7 +352,7 @@ export default function Landing() {
       </section>
 
       {/* CTA */}
-      <section style={{ display:"grid", gridTemplateColumns:"1fr 1fr", minHeight:300, background:C.ocean, color:"white", borderBlock:"1px solid rgba(11,26,51,0.15)" }}>
+      <section className="cta-split" style={{ display:"grid", gridTemplateColumns:"1fr 1fr", minHeight:300, background:C.ocean, color:"white", borderBlock:"1px solid rgba(11,26,51,0.15)" }}>
         <div style={{ padding:`50px ${px}`, display:"flex", flexDirection:"column", justifyContent:"center" }}>
           <div style={K}>Agent-First Economy</div>
           <h2 style={{ maxWidth:500, margin:"16px 0 20px", fontSize:"clamp(28px, 4vw, 52px)", lineHeight:0.85, letterSpacing:"-0.06em" }}>Your agent holds the wallet. AI makes the decisions.</h2>
@@ -371,7 +371,7 @@ export default function Landing() {
           <div style={K}>Agent Log</div>
           <Link href="/onboarding" style={FL(C.ink)}>View all ↗</Link>
         </div>
-        <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))", gap:16, marginTop:16 }}>
+        <div className="agent-log-grid" style={{ display:"grid", gridTemplateColumns:"repeat(auto-fit, minmax(220px, 1fr))", gap:16, marginTop:16 }}>
           {[
             { tag:"Protocol", title:"How SignalPay agents verify offchain events", art:"ocean" as const, lc:C.ocean },
             { tag:"Engineering", title:"Building agent wallets on Circle Agent Stack", art:"stripes" as const, lc:C.coral },
@@ -403,7 +403,7 @@ export default function Landing() {
       </section>
 
       {/* FOOTER */}
-      <footer style={{ display:"flex", flexWrap:"wrap", gap:40, justifyContent:"space-between", padding:`20px ${px} 30px`, borderTop:"1px solid rgba(11,26,51,0.2)", fontSize:10, color:C.steel }}>
+      <footer className="footer-grid" style={{ display:"flex", flexWrap:"wrap", gap:40, justifyContent:"space-between", padding:`20px ${px} 30px`, borderTop:"1px solid rgba(11,26,51,0.2)", fontSize:10, color:C.steel }}>
         <strong style={{ fontSize:15, letterSpacing:"-0.04em", color:C.ink }}>ArcGent</strong>
         <span>Signal-to-payment<br/>autonomous agents.</span>
         <span>LISTEN<br/>DECIDE<br/>PAY</span>
@@ -414,6 +414,19 @@ export default function Landing() {
       <style dangerouslySetInnerHTML={{ __html: `
         @keyframes signalPulse { 0%,100%{transform:scale(1);opacity:.8;} 50%{transform:scale(2.5);opacity:.15;} }
         ::selection { background: rgba(172,198,233,0.4); }
+        @media (max-width: 768px) {
+          .hero-title { font-size: 36px !important; }
+          .hero-cta { flex-direction: column; gap: 10px; }
+          .nav-links { display: none !important; }
+          .stats-bar { flex-direction: column; gap: 12px; }
+          .stats-bar .stat-divider { display: none; }
+          .manifesto-grid { grid-template-columns: 1fr !important; }
+          .process-grid { grid-template-columns: 1fr !important; }
+          .usecase-grid { grid-template-columns: 1fr !important; }
+          .cta-split { grid-template-columns: 1fr !important; }
+          .footer-grid { flex-direction: column; gap: 20px; }
+          .agent-log-grid { grid-template-columns: 1fr !important; }
+        }
       `}}/>
     </div>
   );

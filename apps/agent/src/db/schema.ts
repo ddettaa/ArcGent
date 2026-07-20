@@ -133,3 +133,14 @@ export const apiKeys = sqliteTable("api_keys", {
   lastUsed: integer("last_used", { mode: "timestamp" }),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
+
+// ─── REPUTATION / REVIEWS ──────────────────────────
+export const reviews = sqliteTable("reviews", {
+  id: text("id").primaryKey(),
+  agentId: text("agent_id").notNull(),              // which agent is reviewed
+  reviewer: text("reviewer").notNull(),             // wallet of reviewer
+  rating: integer("rating").notNull(),              // 1-5 stars
+  comment: text("comment"),
+  txHash: text("tx_hash"),                          // linked payment TX
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});

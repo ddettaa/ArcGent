@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useAccount, useBalance } from 'wagmi';
 import { NotificationToasts } from "@/components/Notifications";
 import NavBar from "@/components/NavBar";
+import { SkeletonCard, SkeletonTable } from "@/components/Skeleton";
 import { 
   Bot, Radio, Brain, Zap, CheckCircle, CreditCard, 
   Plus, RefreshCw, ExternalLink, Shield, ShieldAlert,
@@ -560,7 +561,12 @@ export default function Dashboard() {
             </button>
           </div>
           {loading ? (
-            <div style={{ padding: 40, textAlign: "center", color: C.steel }}>Loading...</div>
+            <div style={{ padding: 40 }}>
+              <div style={{ marginBottom: 20, display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
+                {[1,2,3,4].map(i => <SkeletonCard key={i} />)}
+              </div>
+              <SkeletonTable rows={4} cols={4} />
+            </div>
           ) : rules.length === 0 ? (
             <div style={{ padding: 40, textAlign: "center", color: C.steel, fontSize: 13 }}>No rules configured yet. Create one to start automating payments.</div>
           ) : (
