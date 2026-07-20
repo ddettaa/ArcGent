@@ -75,11 +75,13 @@ export default function Dashboard() {
 
   const fetchData = useCallback(async () => {
     try {
+      const walletHeader: Record<string,string> = {};
+      if (userAddress) walletHeader["X-Wallet-Address"] = userAddress;
       const [sRes, rRes, pRes, aRes] = await Promise.all([
         fetch("/api/status").then(r => r.ok ? r.json() : null),
-        fetch("/api/rules").then(r => r.ok ? r.json() : []),
-        fetch("/api/payments").then(r => r.ok ? r.json() : []),
-        fetch("/api/approvals").then(r => r.ok ? r.json() : []),
+        fetch("/api/rules", { headers: walletHeader }).then(r => r.ok ? r.json() : []),
+        fetch("/api/payments", { headers: walletHeader }).then(r => r.ok ? r.json() : []),
+        fetch("/api/approvals", { headers: walletHeader }).then(r => r.ok ? r.json() : []),
       ]);
       if (sRes) setStatus(sRes);
       setRules(rRes || []);
@@ -90,7 +92,7 @@ export default function Dashboard() {
     } catch (e) {
       console.error("Failed to fetch:", e);
     }
-  }, []);
+  }, [userAddress]);
 
   useEffect(() => {
     fetchData();

@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { agentGet } from "../_lib";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const res = await agentGet("/api/payments");
+    const wallet = req.headers.get("x-wallet-address") || undefined;
+    const res = await agentGet("/api/payments", wallet);
     if (!res.ok) return NextResponse.json({ error: "Agent unavailable" }, { status: 503 });
     return NextResponse.json(await res.json());
   } catch {
