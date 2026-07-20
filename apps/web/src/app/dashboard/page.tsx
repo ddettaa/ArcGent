@@ -17,6 +17,8 @@ const C = {
   purple: "#9f72ff", foam: "#d6f0e8",
 };
 
+const ADMIN_KEY = "ag_dccd6ba82f242f3957dff7320e965c085c2e0bf166a170b4";
+
 interface AgentStatus {
   status: string;
   balance: string;
@@ -71,6 +73,8 @@ export default function Dashboard() {
 
   const [myAgent, setMyAgent] = useState<any>(null);
   const [myAgentBalance, setMyAgentBalance] = useState<string | null>(null);
+  const [simulating, setSimulating] = useState(false);
+  const [simResult, setSimResult] = useState<any>(null);
 
   // User's connected wallet
   const { address: userAddress, isConnected: userConnected } = useAccount();
@@ -170,6 +174,32 @@ export default function Dashboard() {
       const res = await fetch("/api/rules", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(rule) });
       if (res.ok) { const saved = await res.json(); setRules(prev => [...prev, saved]); setShowModal(false); setNewRule({ name: "", source: "github", trigger: "", amount: "", recipient: "" }); }
     } catch (e) { console.error(e); }
+  };
+
+  const simulateSignal = async () => {
+    setSimulating(true);
+    setSimResult(null);
+    try {
+      const res = await fetch("/api/simulate", {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${ADMIN_KEY}`,
+        },
+        body: JSON.stringify({
+          signal: "webhook",
+          trigger: "pr_merged",
+          metadata: { repo: "arcgent/demo", pr: 42, author: "dev" },
+        }),
+      });
+      const data = await res.json();
+      setSimResult(data);
+      setTimeout(() => { setSimResult(null); fetchData(); }, 5000);
+    } catch (e: any) {
+      setSimResult({ success: false, message: e.message, trace: [] });
+      setTimeout(() => setSimResult(null), 3000);
+    }
+    setSimulating(false);
   };
 
   const killSwitch = async () => {
@@ -325,6 +355,15 @@ export default function Dashboard() {
               <div style={{ fontSize: 10, color: C.steel }}>Arc Testnet · {mounted ? formatUptime(status?.uptime || 0) : "—"}</div>
             </div>
           </div>
+          {/* SIMULATE SIGNAL BUTTON */}
+          <button onClick={simulateSignal} disabled={simulating} style={{
+            display: "flex", alignItems: "center", gap: 6, padding: "8px 16px",
+            background: "rgba(242,164,58,0.2)", color: C.gold, border: "1px solid rgba(242,164,58,0.4)", borderRadius: 8,
+            fontSize: 12, fontWeight: 700, cursor: "pointer",
+            opacity: simulating ? 0.6 : 1,
+          }}>
+            <Zap size={14} /> {simulating ? "Running..." : "🚀 Simulate Signal"}
+          </button>
           {/* KILL / REVIVE */}
           {isKilled ? (
             <button onClick={revive} disabled={actionLoading === "revive"} style={{
@@ -366,6 +405,45 @@ export default function Dashboard() {
           {statCard("Signal Checks", status?.signalCheckCount || 0, `Every 10s`, C.gold, <Zap size={16} color={C.gold} />)}
           {statCard("Payments", `${confirmedCount} / ${payments.length}`, `${pendingApprovals} pending approval`, C.purple, <CheckCircle size={16} color={C.purple} />)}
         </div>
+
+        {/* SIMULATE RESULT TOAST */}
+        {simResult && (
+          <div style={{
+            background: simResult.success ? "rgba(90,205,167,0.08)" : "rgba(255,75,49,0.08)",
+            border: `1px solid ${simResult.success ? "rgba(90,205,167,0.3)" : "rgba(255,75,49,0.3)"}`,
+            borderRadius: 12, padding: "16px 20px", marginBottom: 24,
+          }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: simResult.trace?.length ? 12 : 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 20 }}>{simResult.success ? "🎉" : "⚠️"}</span>
+                <div>
+                  <div style={{ fontSize: 14, fontWeight: 800, color: simResult.success ? C.mint : C.coral }}>
+                    {simResult.message}
+                  </div>
+                  {simResult.ai && (
+                    <div style={{ fontSize: 11, color: C.steel, marginTop: 2 }}>
+                      AI Confidence: {simResult.ai.confidence}% · {simResult.ai.reasoning}
+                    </div>
+                  )}
+                </div>
+              </div>
+              {simResult.executed?.[0]?.txHash && (
+                <a href={`https://testnet.arcscan.app/tx/${simResult.executed[0].txHash}`} target="_blank" style={{ fontSize: 10, fontWeight: 700, color: C.purple, textDecoration: "none", display: "flex", alignItems: "center", gap: 4 }}>
+                  View TX <ExternalLink size={10} />
+                </a>
+              )}
+            </div>
+            {simResult.trace?.length > 0 && (
+              <div style={{ marginTop: 8, padding: "8px 12px", background: "rgba(11,26,51,0.03)", borderRadius: 8, maxHeight: 160, overflowY: "auto" }}>
+                {simResult.trace.map((t: string, i: number) => (
+                  <div key={i} style={{ fontSize: 11, fontFamily: "'DM Mono', monospace", color: C.ink, padding: "2px 0" }}>
+                    {t}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* KILL SWITCH BANNER */}
         <div style={{ background: "white", borderRadius: 12, border: `1px solid ${isKilled ? C.coral : "rgba(11,26,51,0.08)"}`, padding: 20, marginBottom: 24, display: "flex", alignItems: "center", justifyContent: "space-between" }}>

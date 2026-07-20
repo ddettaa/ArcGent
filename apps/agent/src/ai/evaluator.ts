@@ -115,7 +115,9 @@ export class LLMEvaluator {
   }
 
   async evaluate(signal: SignalContext): Promise<AIEvaluation> {
-    const cacheKey = `${signal.type}:${signal.title}:${signal.description.slice(0, 100)}`;
+    const title = signal.title || signal.type || "signal";
+    const desc = (signal.description || JSON.stringify(signal.data || {})).slice(0, 100);
+    const cacheKey = `${signal.type}:${title}:${desc}`;
     if (this.cache.has(cacheKey)) {
       logger.info(`Cache hit for: ${signal.title}`);
       return this.cache.get(cacheKey)!;
@@ -130,9 +132,10 @@ export class LLMEvaluator {
     const fullPrompt = `${prompt}
 
 SIGNAL DATA:
-Title: ${signal.title}
-Description: ${signal.description}
-Raw Data: ${JSON.stringify(signal.rawData, null, 2)}
+Title: ${title}
+Description: ${desc}
+Source: ${signal.source || "unknown"} / ${signal.trigger || "unknown"}
+Raw Data: ${JSON.stringify(signal.data || {}, null, 2)}
 
 Your evaluation (JSON only):`;
 

@@ -251,6 +251,45 @@ export class ArcGentAgent {
   }
 
   // --- Payment Execution ---
+  async evaluateSignal(source: string, trigger: string, metadata: Record<string, any>): Promise<AIEvaluation> {
+    const evaluator = getEvaluator(this.config);
+    const context: SignalContext = {
+      type: `${source}/${trigger}`,
+      title: `${source}:${trigger}`,
+      description: JSON.stringify(metadata || {}).slice(0, 200),
+      rawData: metadata || {},
+      source,
+      trigger,
+      data: metadata,
+      timestamp: new Date().toISOString(),
+    } as any;
+    return evaluator.evaluate(context);
+  }
+
+  async executePaymentSimple(to: string, amount: number, memo?: string): Promise<string> {
+    if (this.killed) throw new Error("Agent is KILLED — payments blocked");
+    if (!this.circleWallet) throw new Error("Wallet not initialized");
+
+    const isNano = amount < 10000;
+    const txHash = isNano
+      ? await this.circleWallet.sendNanopayment(to, Math.ceil(amount), memo)
+      : await this.circleWallet.sendUSDC(to, amount / 1e6, memo);
+
+    const payId = `pay_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    this.db.insert(payments).values({
+      id: payId, ownerAddress: "0x0", ruleId: "simulate",
+      to, amount,
+      status: "confirmed", type: isNano ? "nanopayment" : "payment",
+      memo: memo || null,
+      txHash,
+      confirmedAt: new Date(),
+    }).onConflictDoNothing().run();
+
+    this.paymentCount++;
+    logger.info(`💸 Simulated payment: ${(amount / 1e6).toFixed(6)} USDC → ${to.slice(0, 10)}...`);
+    return txHash;
+  }
+
   async executePayment(_rule: any, aiEval?: AIEvaluation): Promise<string> {
     if (this.killed) throw new Error("Agent is KILLED — payments blocked");
     if (!this.circleWallet) throw new Error("Wallet not initialized");

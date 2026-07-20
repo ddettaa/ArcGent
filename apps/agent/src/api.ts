@@ -387,6 +387,72 @@ app.post("/api/webhook/views/milestone", async (c) => {
   return c.json(result);
 });
 
+// --- SIGNAL SIMULATOR (demo/hackathon) ---
+// Runs full flow: signal → AI evaluate → auto-pay → trace
+app.post("/api/simulate", async (c) => {
+  if (!requireOperator(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
+  const agent = getAgent();
+  const body = await c.req.json().catch(() => ({}));
+  
+  const trace: string[] = [];
+  const signal = body.signal || "webhook";
+  const trigger = body.trigger || "pr_merged";
+  const metadata = body.metadata || { repo: "arcgent/demo", pr: 42, author: "dev" };
+  
+  trace.push(`📡 Signal received: ${signal}/${trigger}`);
+  
+  // Step 1: Find matching rules
+  const db = getDb();
+  const matchingRules = db.select().from(schema.rules).where(
+    eq(schema.rules.signalSource, signal)
+  ).all().filter(r => r.enabled);
+  
+  trace.push(`🔍 Found ${matchingRules.length} matching rule(s)`);
+  
+  if (!matchingRules.length) {
+    return c.json({ success: false, trace, message: "No matching rules found. Create a rule first!" });
+  }
+  
+  // Step 2: AI evaluation
+  const aiResult = await agent.evaluateSignal(signal, trigger, metadata);
+  trace.push(`🧠 AI evaluated: ${aiResult.confidence}% confidence — ${aiResult.reasoning}`);
+  
+  // Step 3: Execute matching rule if AI approves
+  const executed: any[] = [];
+  if (aiResult.confidence >= 60) {
+    for (const rule of matchingRules) {
+      if (rule.actionAmount > 0 && rule.actionRecipient) {
+        try {
+          const txHash = await agent.executePaymentSimple(
+            rule.actionRecipient,
+            rule.actionAmount,
+            `Simulated: ${rule.name} — ${trigger}`
+          );
+          trace.push(`💸 Paid ${(rule.actionAmount / 1e6).toFixed(4)} USDC to ${rule.actionRecipient.slice(0, 10)}...`);
+          trace.push(`✅ TX: ${txHash.slice(0, 20)}...`);
+          executed.push({ rule: rule.name, amount: rule.actionAmount, txHash });
+        } catch (err: any) {
+          trace.push(`❌ Payment failed: ${err.message}`);
+          executed.push({ rule: rule.name, amount: rule.actionAmount, error: err.message });
+        }
+      }
+    }
+  } else {
+    trace.push(`⏸️ Skipped payment — AI confidence too low (${aiResult.confidence}% < 60%)`);
+  }
+  
+  return c.json({
+    success: executed.length > 0,
+    trace,
+    signal: { source: signal, trigger, metadata },
+    ai: aiResult,
+    executed,
+    message: executed.length 
+      ? `🎉 Agent auto-paid ${executed.length} rule(s)!` 
+      : "Signal processed but no payments made.",
+  });
+});
+
 // --- ADMIN ONLY (kill switch, approvals) ---
 app.post("/api/kill", (c) => {
   if (!requireAdmin(c.req.raw)) return c.json({ error: "Unauthorized — admin only" }, 403);
