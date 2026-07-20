@@ -17,6 +17,11 @@ import { getPaymaster } from "./payments/paymaster.js";
 const app = new Hono();
 app.use("/*", cors());
 
+// Extract owner wallet from header (set by frontend proxy)
+function getOwner(c: any): string {
+  return c.req.header("x-wallet-address") || "0x0";
+}
+
 // --- AUTH MIDDLEWARE ---
 // Public endpoints: health, status, rules (GET), payments (GET)
 // Viewer+: all GET endpoints
@@ -72,6 +77,17 @@ app.post("/api/my-agent", async (c) => {
   return c.json(newAgent, 201);
 });
 
+// Get agent by wallet address
+app.get("/api/my-agent", (c) => {
+  if (!requireViewer(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
+  const walletAddress = c.req.query("walletAddress");
+  if (!walletAddress) return c.json({ error: "walletAddress query param required" }, 400);
+  const db = getDb();
+  const agent = db.select().from(schema.agents).where(eq(schema.agents.ownerAddress, walletAddress)).get();
+  if (!agent) return c.json({ error: "No agent found for this wallet" }, 404);
+  return c.json(agent);
+});
+
 app.post("/api/risk/limits", async (c) => {
   if (!requireAdmin(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
   const agent = getAgent();
@@ -88,13 +104,21 @@ app.post("/api/risk/limits", async (c) => {
 app.get("/api/rules", (c) => {
   if (!requireViewer(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
   const agent = getAgent();
-  return c.json(agent.getRules());
+  const owner = getOwner(c);
+  if (owner === "0x0") return c.json(agent.getRules()); // shared/default
+  const db = getDb();
+  const rules = db.select().from(schema.rules).where(eq(schema.rules.ownerAddress, owner)).all();
+  return c.json(rules.length ? rules : []);
 });
 
 app.get("/api/payments", (c) => {
   if (!requireViewer(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
   const agent = getAgent();
-  return c.json(agent.getPayments());
+  const owner = getOwner(c);
+  if (owner === "0x0") return c.json(agent.getPayments());
+  const db = getDb();
+  const payments = db.select().from(schema.payments).where(eq(schema.payments.ownerAddress, owner)).all();
+  return c.json(payments.length ? payments : []);
 });
 
 app.get("/api/approvals", (c) => {
@@ -369,6 +393,14 @@ app.get("/api/paymaster/stats", async (c) => {
 // --- AGENT-TO-AGENT PAYMENTS ---
 app.get("/api/agents", async (c) => {
   if (!requireViewer(c.req.raw)) return c.json({ error: "Unauthorized" }, 401);
+  const owner = getOwner(c);
+  if (owner !== "0x0") {
+    // Return only user's agents
+    const db = getDb();
+    const userAgents = db.select().from(schema.agents).where(eq(schema.agents.ownerAddress, owner)).all();
+    return c.json(userAgents.length ? userAgents : []);
+  }
+  // Admin/shared view: all agents
   const config = createConfig();
   const agentPayments = getAgentPayments(config);
   await agentPayments.initialize();
