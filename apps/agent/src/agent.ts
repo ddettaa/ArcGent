@@ -170,7 +170,7 @@ export class ArcGentAgent {
       actionMemo: rule.action.memo || null,
       enabled: rule.enabled !== false,
       cooldown: rule.cooldown || null,
-    }).run();
+    }).onConflictDoNothing().run();
     logger.info(`Rule added: ${rule.name} (${rule.id})`);
     return rule;
   }
