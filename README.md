@@ -49,7 +49,6 @@ Click one button. Watch the full flow: signal fires → AI evaluates → **real 
 | **Login** | Signature-based auth, auto-redirect |
 
 ### Security
-- 3-role auth system: Viewer (0), Operator (1), Admin (2)
 - Wallet signature verification for user login
 - API key + session token dual auth
 - Per-user agent kill switch
